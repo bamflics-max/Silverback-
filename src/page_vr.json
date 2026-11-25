@@ -1,0 +1,56 @@
+{
+ "title": "Silverback",
+ "what": "street",
+ "sub": "The street \u00b7 play it on a Quest",
+ "spots": [
+  [
+   "street",
+   "Street"
+  ],
+  [
+   "shop",
+   "Shop"
+  ],
+  [
+   "booths",
+   "Booths"
+  ],
+  [
+   "champs",
+   "Champions"
+  ],
+  [
+   "yard",
+   "Practice"
+  ],
+  [
+   "hoop",
+   "Hoop"
+  ],
+  [
+   "roof",
+   "Roof"
+  ],
+  [
+   "mouth",
+   "Alley"
+  ],
+  [
+   "back",
+   "Elevator"
+  ],
+  [
+   "dock",
+   "Dock"
+  ]
+ ],
+ "parts": [
+  "part1_base.js",
+  "part2_scene.js",
+  "part2c_street.js",
+  "part2d_town.js",
+  "scene_street.js",
+  "part4_xr.js",
+  "part3_run.js"
+ ]
+}

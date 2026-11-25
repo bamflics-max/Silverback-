@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Silverback gorilla preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=New+Rocker&family=Urbanist:wght@450;650&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Layout: one flat studio backdrop. The gorilla owns the screen; the logo sits top left and three plain text rows sit at the bottom. No panels, no boxes. */
+  --backdrop:#8f939b;
+  --backdrop-edge:#5d6169;
+  --ink:#f6f7f9;
+  --ink-soft:rgba(246,247,249,.62);
+  --ink-faint:rgba(246,247,249,.4);
+  --accent:#2a7bff;
+  --accent-deep:#0a2460;
+  --display:"New Rocker","Pirata One",Georgia,serif;
+  --body:"Urbanist","Manrope","Segoe UI",system-ui,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  background:var(--backdrop-edge);color:var(--ink);
+  font-family:var(--body);font-weight:450;font-size:17px;line-height:1.3;
+  overflow:hidden;-webkit-tap-highlight-color:transparent;
+}
+.stage{
+  position:relative;height:100%;touch-action:none;cursor:grab;
+  background:radial-gradient(ellipse 75% 62% at 50% 44%,var(--backdrop) 0%,var(--backdrop-edge) 100%);
+}
+.stage:active{cursor:grabbing}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+.logo{
+  position:absolute;left:18px;top:12px;margin:0;pointer-events:none;
+  font-family:var(--display);font-weight:400;font-size:clamp(30px,8.4vw,46px);line-height:1;letter-spacing:.01em;
+  color:var(--ink);-webkit-text-stroke:6px var(--accent);paint-order:stroke fill;
+  text-shadow:0 3px 0 var(--accent-deep),0 7px 12px rgba(0,0,0,.35);
+}
+.hint{position:absolute;right:18px;top:22px;margin:0;color:var(--ink-soft);font-size:15px;pointer-events:none;transition:opacity .3s}
+
+.picks{
+  position:absolute;left:0;right:0;bottom:0;display:grid;gap:14px;
+  padding:34px 18px max(20px,env(safe-area-inset-bottom));
+  background:linear-gradient(to top,rgba(52,55,61,.72),rgba(52,55,61,0));
+}
+.row{display:flex;align-items:baseline;gap:6px 22px;flex-wrap:wrap}
+.row > span{flex:0 0 56px;color:var(--ink-faint);font-size:14px;letter-spacing:.02em}
+.opt{
+  appearance:none;border:0;background:none;padding:6px 0 7px;margin:0;cursor:pointer;
+  font:450 19px/1.1 var(--body);letter-spacing:-.01em;color:var(--ink-soft);
+  border-bottom:2px solid transparent;
+}
+.opt[aria-checked="true"]{color:var(--ink);font-weight:650;border-bottom-color:var(--accent)}
+.opt:focus-visible{outline:2px solid var(--ink);outline-offset:4px;border-radius:2px}
+.note{position:absolute;inset:0;display:grid;place-items:center;padding:28px;text-align:center;font-size:19px;background:var(--backdrop-edge)}
+.note[hidden]{display:none}
+
+@media (min-width:760px){
+  .picks{display:flex;flex-wrap:wrap;gap:10px 40px;padding-left:28px;padding-bottom:26px}
+  .row{flex-wrap:nowrap;white-space:nowrap}
+  .logo{left:28px;top:18px}
+  .hint{right:28px;top:30px}
+}
+</style>
+</head>
+<body>
+<main class="stage" id="stage" aria-label="3D preview of the gorilla. Drag to turn it.">
+  <canvas id="view"></canvas>
+  <h1 class="logo">Silverback</h1>
+  <p class="hint" id="hint">Drag to turn</p>
+
+  <nav class="picks" aria-label="Preview options">
+    <div class="row" role="radiogroup" aria-labelledby="l-face" id="g-face">
+      <span id="l-face">Face</span>
+      <button class="opt" id="face-new" role="radio" aria-checked="true" data-face="new">New</button>
+      <button class="opt" id="face-previous" role="radio" aria-checked="false" data-face="previous">Previous</button>
+    </div>
+    <div class="row" role="radiogroup" aria-labelledby="l-look" id="g-look">
+      <span id="l-look">Look</span>
+      <button class="opt" id="look-fur" role="radio" aria-checked="true" data-look="fur">Fur texture</button>
+      <button class="opt" id="look-both" role="radio" aria-checked="false" data-look="both">Both</button>
+    </div>
+    <div class="row" role="radiogroup" aria-labelledby="l-view" id="g-view">
+      <span id="l-view">View</span>
+      <button class="opt" id="view-head" role="radio" aria-checked="true" data-view="head">Head</button>
+      <button class="opt" id="view-body" role="radio" aria-checked="false" data-view="body">Body</button>
+      <button class="opt" id="view-fp" role="radio" aria-checked="false" data-view="fp">First person</button>
+    </div>
+    <div class="row" role="radiogroup" aria-labelledby="l-angle" id="g-angle">
+      <span id="l-angle">Angle</span>
+      <button class="opt" id="angle-three" role="radio" aria-checked="true" data-angle="three">Three-quarter</button>
+      <button class="opt" id="angle-front" role="radio" aria-checked="false" data-angle="front">Front</button>
+      <button class="opt" id="angle-side" role="radio" aria-checked="false" data-angle="side">Side</button>
+    </div>
+  </nav>
+  <div class="note" id="note" hidden></div>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function () {
+'use strict';
+var T = window.THREE;
+var $ = function (id) { return document.getElementById(id); };
+var stage = $('stage');
+var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function note(msg) { $('note').textContent = msg; $('note').hidden = false; }
+if (!T) { note('This preview needs 3D graphics. Open it in Chrome or Safari.'); return; }
+
+var renderer;
+try { renderer = new T.WebGLRenderer({ canvas: $('view'), antialias: true, alpha: true }); }
+catch (e) { note('This preview needs 3D graphics (WebGL). Open it in Chrome or Safari.'); return; }
+renderer.setClearColor(0x000000, 0);
+var scene = new T.Scene();
+var camera = new T.PerspectiveCamera(36, 1, 0.03, 40);
+
+var KEYS = ['face', 'look', 'view', 'angle'];
+var state = { face: 'new', look: 'fur', view: 'head', angle: 'three' };
+var DATA = null, rig = null;
+
+/* ------------------------------------------------------------------ */
+/* Mesh data                                                           */
+/* ------------------------------------------------------------------ */
+function bytes(s) { var bin = atob(s), u = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u.buffer; }
+function geometry(part, mirror) {
+  var q = new Uint16Array(bytes(part.v)), nq = new Int8Array(bytes(part.n)), mq = new Uint8Array(bytes(part.m));
+  var src = part.i32 ? new Uint32Array(bytes(part.i)) : new Uint16Array(bytes(part.i));
+  var n = part.nv, pos = new Float32Array(n * 3), nrm = new Float32Array(n * 3), msk = new Float32Array(n * 3);
+  for (var i = 0; i < n * 3; i++) {
+    var k = i % 3;
+    pos[i] = part.lo[k] + q[i] / 65535 * (part.hi[k] - part.lo[k]);
+    nrm[i] = nq[i] / 127; msk[i] = mq[i] / 255;
+    if (mirror && k === 0) { pos[i] = -pos[i]; nrm[i] = -nrm[i]; }
+  }
+  var idx = new (n > 65535 ? Uint32Array : Uint16Array)(src.length);
+  for (var t = 0; t < src.length; t += 3) { idx[t] = src[t]; idx[t + 1] = mirror ? src[t + 2] : src[t + 1]; idx[t + 2] = mirror ? src[t + 1] : src[t + 2]; }
+  var g = new T.BufferGeometry();
+  g.setAttribute('position', new T.BufferAttribute(pos, 3));
+  g.setAttribute('normal', new T.BufferAttribute(nrm, 3));
+  g.setAttribute('mask', new T.BufferAttribute(msk, 3));
+  if (part.p) { var pn = part.pn || 2, pq = new Uint8Array(bytes(part.p)), pt = new Float32Array(n * pn); for (var j = 0; j < n * pn; j++) pt[j] = pq[j] / 255; g.setAttribute('paint', new T.BufferAttribute(pt, pn)); }
+  g.setIndex(new T.BufferAttribute(idx, 1));
+  return g;
+}
+
+/* ------------------------------------------------------------------ */
+/* Shading: one material, two looks. Skin is matte in both.            */
+/* ------------------------------------------------------------------ */
+var VERT = [
+  'attribute vec3 mask; attribute vec4 paint;',
+  'uniform float uPush; uniform float uSoft;',
+  'varying vec3 vN; varying vec3 vObj; varying vec3 vMask; varying vec3 vView; varying vec4 vPaint;',
+  'void main(){',
+  '  vObj = position; vMask = mask; vPaint = paint;',
+  '  float depth = -(modelViewMatrix * vec4(position, 1.0)).z;',
+  '  float push = uPush * clamp(depth / 3.4, 0.16, 1.3) * mix(1.0, smoothstep(0.25, 0.7, mask.z), uSoft);',
+  '  vec4 mv = modelViewMatrix * vec4(position + normal * push, 1.0);',
+  '  vN = normalize(normalMatrix * normal); vView = -mv.xyz;',
+  '  gl_Position = projectionMatrix * mv;',
+  '}'
+].join('\n');
+var FRAG = [
+  'precision highp float;',
+  'uniform vec3 uFur; uniform vec3 uSkin; uniform vec3 uSkin2; uniform vec3 uSkinD; uniform vec3 uAlt; uniform vec3 uLight; uniform float uTone3; uniform float uPlanes;',
+  'uniform float uGrain; uniform float uToon; uniform float uInk;',
+  'varying vec3 vN; varying vec3 vObj; varying vec3 vMask; varying vec3 vView; varying vec4 vPaint;',
+  'float hash(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }',
+  'void main(){',
+  '  if (uInk > 0.5) { gl_FragColor = vec4(0.035, 0.035, 0.05, 1.0); return; }',
+  '  vec3 n = normalize(vN); vec3 v = normalize(vView); vec3 l = normalize(uLight);',
+  '  float skin = vMask.x; float alt = vMask.y; float ao = vMask.z;',
+  '  if (uPlanes > 0.5) skin = smoothstep(0.47, 0.53, skin);               /* new head: the fur line is cut cleanly instead of fading */',
+  '  vec3 skinCol = mix(uSkin, uSkin2, alt);',
+  '  if (uTone3 > 0.5) skinCol = mix(mix(uSkin, uSkin2, 1.0 - smoothstep(0.485, 0.515, vPaint.y)), uSkinD, 1.0 - smoothstep(0.485, 0.515, vPaint.x));   /* three flat skin tones, cut at painted edges */',
+  '  skinCol *= 1.0 + (vPaint.w - 0.5) * 0.6 * uPlanes;                    /* soft painted tone: a little lighter on the roof of the nose and the upper lip */',
+  '  vec3 base = mix(mix(uFur, uAlt, alt * (1.0 - skin)), skinCol, skin);',
+  '  float fur = uGrain * (1.0 - skin * 0.62);',
+  '  if (fur > 0.0) {',
+  '    float g = (hash(floor(vObj * vec3(150.0, 42.0, 150.0))) - 0.5) * 0.5 + (hash(floor(vObj * vec3(64.0, 20.0, 64.0)) + 7.0) - 0.5) * 0.32 + (hash(floor(vObj * vec3(21.0, 9.0, 21.0)) + 3.0) - 0.5) * 0.18;',
+  '    base *= 1.0 + g * 0.62 * fur;',
+  '  }',
+  '  float w = dot(n, l) * 0.5 + 0.5;',
+  '  float lit; float occ; vec3 add = vec3(0.0);',
+  '  float rim = pow(1.0 - max(dot(n, v), 0.0), 3.0);',
+  '  if (uToon > 0.5) {',
+  '    lit = mix(mix(0.5, 0.74, smoothstep(0.40, 0.425, w)), 1.0, smoothstep(0.62, 0.645, w));',
+  '    occ = mix(mix(0.78, 1.0, smoothstep(0.42, 0.5, ao)), 1.0, vPaint.z);   /* the bare lower face of the new head is shaded by the light bands alone, so no stray dark patches */',
+  '    add = vec3(0.07, 0.075, 0.09) * step(0.955, w) * (1.0 - skin);',
+  '  } else {',
+  '    lit = mix(0.5, 1.0, smoothstep(0.1, 0.95, w));',
+  '    occ = mix(0.55, 1.0, ao);',
+  '    float nh = max(dot(n, normalize(l + v)), 0.0);',
+  '    add = vec3(0.16, 0.17, 0.19) * (pow(nh, 9.0) * 0.4 + rim * 0.4) * occ * (1.0 - skin * 0.6);',
+  '  }',
+  '  if (uPlanes > 0.5) {                                                   /* bare skin of the new head, in both looks: soft light that keeps falling off as a plane turns away, so planes stay apart. No hard steps on the face. */',
+  '    float occS = mix(0.55, 1.0, ao);',
+  '    float nhS = max(dot(n, normalize(l + v)), 0.0);',
+  '    vec3 addS = vec3(0.16, 0.17, 0.19) * (pow(nhS, 9.0) * 0.4 + rim * 0.4) * occS * 0.4;',
+  '    lit = mix(lit, 0.46 + 0.7 * w * w, skin); occ = mix(occ, occS, skin); add = mix(add, addS, skin);',
+  '  }',
+  '  gl_FragColor = vec4(base * 1.25 * lit * occ + add, 1.0);',
+  '}'
+].join('\n');
+
+function rgb(a) { return new T.Color(a[0] / 255, a[1] / 255, a[2] / 255); }
+var LIGHT = new T.Vector3(-0.42, 0.62, 0.66).normalize();           /* light direction in the camera's frame, updated every frame */
+var LIGHT_WORLD = new T.Vector3(-0.5, 0.62, 0.62).normalize();     /* the studio light itself stays put, so every angle is judged under the same light */
+function material(skin, skin2, alt, skinDark, planes) {
+  return new T.ShaderMaterial({
+    vertexShader: VERT, fragmentShader: FRAG,
+    uniforms: {
+      uFur: { value: rgb(DATA.fur) }, uSkin: { value: rgb(skin) }, uSkin2: { value: rgb(skin2) }, uSkinD: { value: rgb(skinDark || skin) }, uTone3: { value: skinDark ? 1 : 0 }, uPlanes: { value: planes ? 1 : 0 },
+      uAlt: { value: rgb(alt) }, uLight: { value: LIGHT },
+      uGrain: { value: 1 }, uToon: { value: state.look === 'both' ? 1 : 0 }, uPush: { value: 0 }, uSoft: { value: 0 }, uInk: { value: 0 }
+    }
+  });
+}
+var inkMat = new T.ShaderMaterial({
+  vertexShader: VERT, fragmentShader: FRAG, side: T.BackSide,
+  uniforms: { uFur: { value: new T.Color() }, uSkin: { value: new T.Color() }, uSkin2: { value: new T.Color() }, uSkinD: { value: new T.Color() }, uTone3: { value: 0 }, uPlanes: { value: 0 }, uAlt: { value: new T.Color() }, uLight: { value: LIGHT },
+    uGrain: { value: 0 }, uToon: { value: 0 }, uPush: { value: 0.013 }, uSoft: { value: 0 }, uInk: { value: 1 } }
+});
+var inkSoft = inkMat.clone(); inkSoft.uniforms.uLight.value = LIGHT; inkSoft.uniforms.uSoft.value = 1;   /* faces: thinner ink inside creases, so pockets do not fill with black */
+/* New face: no ink lines on the bare lower face. A hidden pass marks those pixels, and the head's ink skips them.
+   The outline still shows wherever it falls on fur or on the background, so the outer outline is untouched. */
+var zoneMark = new T.ShaderMaterial({
+  vertexShader: VERT,
+  fragmentShader: 'precision highp float; varying vec3 vMask; varying vec4 vPaint; void main(){ if (vPaint.z < 0.5 || vMask.x < 0.5) discard; gl_FragColor = vec4(0.0); }',
+  uniforms: { uPush: { value: 0 }, uSoft: { value: 0 } },
+  colorWrite: false, depthWrite: false, depthFunc: T.LessEqualDepth,
+  stencilWrite: true, stencilRef: 1, stencilFunc: T.AlwaysStencilFunc, stencilFail: T.KeepStencilOp, stencilZFail: T.KeepStencilOp, stencilZPass: T.ReplaceStencilOp
+});
+var inkZone = inkSoft.clone(); inkZone.uniforms.uLight.value = LIGHT;
+inkZone.stencilWrite = true; inkZone.stencilRef = 1; inkZone.stencilFunc = T.NotEqualStencilFunc;
+inkZone.stencilFail = T.KeepStencilOp; inkZone.stencilZFail = T.KeepStencilOp; inkZone.stencilZPass = T.KeepStencilOp;
+var SHARED = [inkMat, inkSoft, inkZone, zoneMark];
+function piece(geo, mat, ink, zone) {
+  var m = new T.Mesh(geo, mat);
+  if (state.look === 'both') {
+    var line = new T.Mesh(geo, ink || inkMat); line.renderOrder = 2; m.add(line);
+    if (zone) { var mark = new T.Mesh(geo, zoneMark); mark.renderOrder = 1; m.add(mark); }
+  }
+  return m;
+}
+
+/* ------------------------------------------------------------------ */
+/* Eyes: flat colours, no gloss                                       */
+/* ------------------------------------------------------------------ */
+function ball(r, color, x, y, z) {
+  var m = new T.Mesh(new T.SphereGeometry(r, 18, 14), new T.MeshBasicMaterial({ color: color }));
+  m.position.set(x || 0, y || 0, z || 0); return m;
+}
+function cap(r, angle, color, order) {          /* a round patch on the front of the eyeball: clean circles for iris and pupil */
+  var g = new T.SphereGeometry(r, 36, 8, 0, Math.PI * 2, 0, angle); g.rotateX(Math.PI / 2);
+  return new T.Mesh(g, new T.MeshBasicMaterial({ color: color, polygonOffset: true, polygonOffsetFactor: -order, polygonOffsetUnits: -order }));
+}
+function buildEye(style, r) {
+  var eye = new T.Group();
+  if (style === 'bead') {                       /* new face: a dark eye, deep brown iris, one small highlight */
+    eye.add(ball(r, 0x070505));
+    eye.add(cap(r * 1.006, 0.76, 0x25150b, 1));
+    eye.add(cap(r * 1.012, 0.36, 0x030202, 2));
+    eye.add(ball(r * 0.08, 0xc4bdb1, -r * 0.33, r * 0.03, r * 0.955));
+  } else {                                      /* previous face */
+    eye.add(ball(r, 0x0e0806));
+    eye.add(ball(r * 0.62, 0x2c190c, 0, 0, r * 0.52));
+    eye.add(ball(r * 0.3, 0x050404, 0, 0, r * 0.86));
+    eye.add(ball(r * 0.08, 0xb5aea4, -r * 0.24, r * 0.22, r * 0.98));
+  }
+  return eye;
+}
+
+/* ------------------------------------------------------------------ */
+/* Building the fighter                                                */
+/* ------------------------------------------------------------------ */
+function buildRig() {
+  if (rig) {
+    rig.root.traverse(function (o) { if (o.geometry) o.geometry.dispose(); if (o.material && SHARED.indexOf(o.material) < 0) o.material.dispose(); });
+    scene.remove(rig.root);
+  }
+  var M = DATA.meta, P = DATA.parts, F = DATA.faces[state.face];
+  var root = new T.Group(); scene.add(root);
+  var body = material(DATA.bodySkin, DATA.bodySkin, DATA.silver), headMat = material(F.skin, F.skin2, DATA.crown, F.tone3 ? F.skinDark : null, F.planes);
+  var dark = new T.MeshBasicMaterial({ color: 0x07070a });
+
+  var torso = piece(geometry(P.torso), body); root.add(torso);
+
+  var head = new T.Group(); head.position.fromArray(M.head); root.add(head);
+  head.add(piece(geometry(F.mesh), headMat, F.inkZone ? inkZone : (F.softInk ? inkSoft : inkMat), F.inkZone));
+  [-1, 1].forEach(function (s) {
+    var eye = buildEye(F.eyeStyle, F.eyeR); eye.position.set(s * F.eye[0], F.eye[1], F.eye[2]); head.add(eye);
+    if (F.nostril) {
+      var nos = new T.Mesh(new T.SphereGeometry(1, 12, 10), dark);
+      nos.position.set(s * F.nostril[0], F.nostril[1], F.nostril[2]); nos.scale.fromArray(F.nostrilSize); nos.rotation.z = s * F.nostrilTilt; head.add(nos);
+    }
+  });
+  if (F.mouth && F.mouth.length > 3) {
+    var curve = new T.CatmullRomCurve3(F.mouth.map(function (q) { return new T.Vector3(q[0], q[1], q[2]); }));
+    head.add(new T.Mesh(new T.TubeGeometry(curve, 48, F.mouthR || 0.004, 8, false), dark));
+  }
+
+  var arms = [1, -1].map(function (s) {
+    var mir = s < 0;
+    var up = piece(geometry(P.upper, mir), body), fo = piece(geometry(P.fore, mir), body);
+    up.matrixAutoUpdate = false; fo.matrixAutoUpdate = false; root.add(up); root.add(fo);
+    return { side: s, upper: up, fore: fo };
+  });
+  rig = { root: root, head: head, torso: torso, arms: arms, M: M };
+  rig.head.visible = state.view !== 'fp';
+  poseArms(0);
+}
+
+/* two-bone arm: shoulder -> elbow -> wrist */
+var vS = new T.Vector3(), vT = new T.Vector3(), vD = new T.Vector3(), vE = new T.Vector3(), vP = new T.Vector3(), vA = new T.Vector3(), vU = new T.Vector3(), vFront = new T.Vector3(0, 0, 1);
+var bx = new T.Vector3(), by = new T.Vector3(), bz = new T.Vector3();
+function aim(mesh, from, axis, facing) {
+  by.copy(axis).negate();
+  bz.copy(facing).addScaledVector(axis, -facing.dot(axis)).normalize();
+  bx.crossVectors(by, bz);
+  mesh.matrix.makeBasis(bx, by, bz).setPosition(from);
+  mesh.matrixWorldNeedsUpdate = true;
+}
+function poseArms(t) {
+  var M = rig.M, fp = state.view === 'fp';
+  rig.arms.forEach(function (a) {
+    var s = a.side, sway = reduceMotion ? 0 : Math.sin(t * 1.3 + (s > 0 ? 0 : 1.7));
+    vS.set(s * M.shoulder[0], M.shoulder[1], M.shoulder[2]);
+    if (fp) { vT.set(s * 0.28, 1.08 + sway * 0.012, 0.72 + sway * 0.01); vP.set(s * -0.3, -1, 0); vU.set(s * 0.1, 1, -0.25); }
+    else { vT.set(s * (M.shoulder[0] + 0.11), M.shoulder[1] - 0.9 + sway * 0.006, 0.16); vP.set(s * 0.35, 0, -1); vU.set(s * 0.25, 0, 1); }
+    vD.subVectors(vT, vS);
+    var dist = Math.min(Math.max(vD.length(), Math.abs(M.L1 - M.L2) + 0.01), M.L1 + M.L2 - 0.004);
+    vD.normalize();
+    var along = (M.L1 * M.L1 - M.L2 * M.L2 + dist * dist) / (2 * dist), out = Math.sqrt(Math.max(M.L1 * M.L1 - along * along, 0));
+    vP.addScaledVector(vD, -vP.dot(vD)).normalize();
+    vE.copy(vS).addScaledVector(vD, along).addScaledVector(vP, out);
+    vA.subVectors(vE, vS).normalize();
+    aim(a.upper, vS, vA, fp ? vU : vFront);
+    vT.copy(vS).addScaledVector(vD, dist);
+    vA.subVectors(vT, vE).normalize();
+    aim(a.fore, vE, vA, vU);
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Camera                                                              */
+/* ------------------------------------------------------------------ */
+var cam = { az: 0.62, el: 0.05, zoom: 1, yaw: 0, pitch: -0.3, touched: false, sway: 0 };
+var aspect = 1, TAN18 = Math.tan(18 * Math.PI / 180);
+function updateCamera(dt) {
+  var M = rig.M;
+  if (state.view === 'fp') {
+    camera.fov = aspect < 0.8 ? 92 : 80; camera.near = 0.02;
+    camera.position.set(M.head[0], M.head[1] + 0.04, M.head[2] + 0.03);
+    var cp = Math.cos(cam.pitch);
+    camera.lookAt(camera.position.x + Math.sin(cam.yaw) * cp, camera.position.y + Math.sin(cam.pitch), camera.position.z + Math.cos(cam.yaw) * cp);
+    LIGHT.set(-0.42, 0.62, 0.66).normalize();
+  } else {
+    camera.fov = 36; camera.near = 0.05;
+    var half = Math.atan(TAN18 * aspect), headView = state.view === 'head', az = cam.az;
+    if (!cam.touched && !reduceMotion) {
+      if (headView) { cam.sway += dt; az = cam.az + Math.sin(cam.sway * 0.6) * 0.4; }
+      else cam.az += dt * 0.35;
+    }
+    var fit = headView ? Math.max(0.46 / TAN18, 0.36 / Math.tan(half)) : Math.max(1.2 / TAN18, 0.9 / Math.tan(half));
+    var ty = headView ? M.head[1] - 0.06 : 0.8, tz = headView ? M.head[2] + 0.1 + 0.13 * Math.abs(Math.sin(az)) : 0;   /* head view aims at the face, not the middle of the skull, and follows it round to the side */
+    var r = fit * cam.zoom, ce = Math.cos(cam.el);
+    camera.position.set(r * Math.sin(az) * ce, ty + r * Math.sin(cam.el), tz + r * Math.cos(az) * ce);
+    camera.lookAt(0, ty, tz);
+    camera.updateMatrixWorld();
+    LIGHT.copy(LIGHT_WORLD).transformDirection(camera.matrixWorldInverse);
+  }
+  camera.updateProjectionMatrix();
+}
+var drag = { pts: {}, x: 0, y: 0, pinch: 0 };
+stage.addEventListener('pointerdown', function (e) {
+  if (e.target.closest('.opt')) return;
+  drag.pts[e.pointerId] = { x: e.clientX, y: e.clientY }; drag.x = e.clientX; drag.y = e.clientY; drag.pinch = 0;
+  if (!cam.touched) { cam.az += Math.sin(cam.sway * 0.6) * 0.4 * (state.view === 'head' ? 1 : 0); cam.touched = true; }
+  if (state.view !== 'fp' && state.angle) { state.angle = ''; sync(); }
+  $('hint').style.opacity = 0;
+  try { stage.setPointerCapture(e.pointerId); } catch (err) {}
+});
+stage.addEventListener('pointermove', function (e) {
+  if (!drag.pts[e.pointerId]) return;
+  drag.pts[e.pointerId] = { x: e.clientX, y: e.clientY };
+  var ids = Object.keys(drag.pts);
+  if (ids.length >= 2) {
+    var a = drag.pts[ids[0]], b = drag.pts[ids[1]], d = Math.hypot(a.x - b.x, a.y - b.y);
+    if (drag.pinch) cam.zoom = Math.min(1.8, Math.max(0.35, cam.zoom * drag.pinch / d));
+    drag.pinch = d; return;
+  }
+  var dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY;
+  if (state.view === 'fp') { cam.yaw = Math.max(-1.2, Math.min(1.2, cam.yaw + dx * 0.005)); cam.pitch = Math.max(-1.25, Math.min(0.5, cam.pitch + dy * 0.005)); }
+  else { cam.az -= dx * 0.009; cam.el = Math.max(-0.5, Math.min(1.2, cam.el + dy * 0.006)); }
+});
+function endDrag(e) { delete drag.pts[e.pointerId]; drag.pinch = 0; var l = Object.keys(drag.pts); if (l.length === 1) { drag.x = drag.pts[l[0]].x; drag.y = drag.pts[l[0]].y; } }
+stage.addEventListener('pointerup', endDrag);
+stage.addEventListener('pointercancel', endDrag);
+stage.addEventListener('wheel', function (e) { e.preventDefault(); cam.zoom = Math.min(1.8, Math.max(0.35, cam.zoom * (e.deltaY > 0 ? 1.08 : 0.93))); }, { passive: false });
+
+function resize() {
+  var w = stage.clientWidth || 1, h = stage.clientHeight || 1;
+  aspect = w / h; renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); renderer.setSize(w, h, false);
+  camera.aspect = aspect; camera.updateProjectionMatrix();
+}
+if (window.ResizeObserver) new ResizeObserver(resize).observe(stage);
+window.addEventListener('resize', resize);
+
+/* ------------------------------------------------------------------ */
+/* Options                                                             */
+/* ------------------------------------------------------------------ */
+function sync() {
+  KEYS.forEach(function (k) {
+    Array.prototype.forEach.call(document.querySelectorAll('[data-' + k + ']'), function (b) { b.setAttribute('aria-checked', String(b.dataset[k] === state[k])); });
+  });
+  $('hint').textContent = state.view === 'fp' ? 'Drag to look around' : 'Drag to turn';
+}
+function choose(k, v) {
+  if (k === 'angle') {                         /* snap to a fixed angle so two faces can be compared like for like */
+    state.angle = v; cam.az = v === 'front' ? 0 : (v === 'side' ? 1.45 : 0.62); cam.el = 0.05; cam.touched = true;
+    if (state.view === 'fp') { state.view = 'head'; rig.head.visible = true; cam.zoom = 1; }
+    sync(); return;
+  }
+  if (state[k] === v) return;
+  state[k] = v;
+  if (k === 'view') { cam.zoom = 1; rig.head.visible = v !== 'fp'; }
+  else buildRig();
+  sync();
+}
+KEYS.forEach(function (k) {
+  $('g-' + k).addEventListener('click', function (e) { var b = e.target.closest('[data-' + k + ']'); if (b) choose(k, b.dataset[k]); });
+});
+
+var clock = 0;
+function tick(dt) {
+  clock += dt;
+  if (!rig) return;
+  poseArms(clock);
+  if (!reduceMotion) rig.torso.scale.set(1 + Math.sin(clock * 1.3) * 0.005, 1, 1 + Math.sin(clock * 1.3) * 0.01);
+  updateCamera(dt);
+  renderer.render(scene, camera);
+}
+function start(saved) {
+  ['face', 'look', 'view'].forEach(function (k) { if (saved && typeof saved[k] === 'string' && document.querySelector('[data-' + k + '="' + saved[k] + '"]')) state[k] = saved[k]; });
+  buildRig(); sync(); resize();
+  var last = 0;
+  if (location.hash === '#manual') { window.__ape = { tick: tick, choose: choose, cam: cam }; tick(0.016); return; }
+  requestAnimationFrame(function frame(ms) { var dt = Math.min(0.05, (ms - last) / 1000 || 0.016); last = ms; tick(dt); requestAnimationFrame(frame); });
+}
+
+fetch('fighter.json').then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }).then(function (d) {
+  DATA = d;
+  var hot = window.claude && window.claude.hot;
+  if (hot && hot.snapshot) hot.snapshot(function () { return { face: state.face, look: state.look, view: state.view }; });
+  if (hot && hot.ready) hot.ready(start); else start((hot && hot.data) || {});
+}).catch(function () { note('The gorilla model did not load. Reload the page to try again.'); });
+})();
+</script>
+</body>
+</html>
