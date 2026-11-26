@@ -9,11 +9,11 @@
 /* k: how many times bigger than you your gorilla is: the street looks 1/k its size to you. E: how high its eyes sit off the ground, resting on its body.  */
 /* Every player gets the same body (fair fights); what changes per player is how far the arms reach: they are lengthened from the chest just enough   */
 /* that the ground meets your real hands at about your waist, so nobody has to bend down to move. The left stick tunes that, and it is remembered.    */
-var BODY = { k: 1.3, E: 0.95, pivot: 0.22 };
-var G = 9.8;
+var BODY = { k: 1.3, ground: 0.49, look: 0.542 };      /* k: how big you are in the street. ground: how far under your eyes the ground sits at rest, in metres as you feel them (Gorilla Tag's own 0.49). look: the size gorillas are drawn at */
+var G = 9.8 * BODY.k;                                    /* so gravity, as you feel it, is the real 9.8 */
 var XRG = {
   on: false, session: null, ref: null, cam: null, rig: null, me: null, world: null, button: null,
-  k: BODY.k, E: BODY.E, D: null, EYE0: 1.347, EYEM: V(0, 1.347, 0.342), arm: 1.3, eyeH: 1.55, eyeMeasured: false, calibUntil: 0, groundAdj: 0, floorKnown: false,
+  k: BODY.k, E: BODY.ground * BODY.k, R: BODY.ground, histT: null, D: null, EYE0: 1.347, EYEM: V(0, 1.347, 0.342), arm: 1.3, eyeH: 1.55, eyeMeasured: false, calibUntil: 0, groundAdj: 0, floorKnown: false,
   pos: V(0, 0, 0), yaw: 0, vel: V(0, 0, 0), ground: false, time: 0,
   headLocal: V(0, 1.6, 0), headQ: new T.Quaternion(), poseSeen: false, aligned: false, failed: false,
   hands: ['left', 'right'].map(function (side) { return { side: side, arm: side === 'left' ? 1 : -1, local: V(0, 0, 0), q: new T.Quaternion(), wq: new T.Quaternion(), cur: V(0, 0, 0), last: V(0, 0, 0), prev: V(0, 0, 0), was: false, coll: false, kind: 0, src: null, tracked: false, tapAt: 0, held: null, fistWas: false, testB: null }; }),
@@ -23,17 +23,16 @@ var XRG = {
 var HW = V(0, 0, 0), BW = V(0, 0, 0), TMP = V(0, 0, 0), MOVE = V(0, 0, 0), TRAVEL = V(0, 0, 0), START = V(0, 0, 0), AVG = V(0, 0, 0), OFF = V(0, 0, 0), LW = V(0, 0, 0);
 var FIRST = [V(0, 0, 0), V(0, 0, 0)];
 
-function xrDims() {                                      /* the body: the same for everyone */
-  var E = XRG.E, k = XRG.k;
-  XRG.D = { rHand: 0.065 * E, rHead: 0.17 * E, rBody: 0.3 * E, drop: 0.7 * E, maxArm: 1.42 * E, unstick: k, velLimit: 0.3 * k, maxJump: 6.5 * Math.pow(k, 0.75) };
-  var s = E / XRG.EYE0;                                  /* the gorillas standing about are what other players will look like, so they are this size too */
+function xrDims() {                                      /* the body: Gorilla Tag's own measurements (metres as you feel them), times your size in the street */
+  var k = XRG.k, R = Math.min(0.8, Math.max(0.34, BODY.ground + XRG.groundAdj)), i;
+  XRG.R = R; XRG.E = R * k; XRG.arm = 1; G = 9.8 * k;
+  XRG.D = { rHand: 0.05 * k, rHead: 0.15 * k, rBody: 0.15 * k, drop: (R - 0.15) * k, maxArm: 1.5 * k, unstick: k, velLimit: 0.4 * k, maxJump: 6.5 * k, jump: 1.1, mu: 0.6, window: 8 / 72 };
+  if (!XRG.histT) { while (XRG.hist.length < 24) XRG.hist.push(V(0, 0, 0)); XRG.histT = []; for (i = 0; i < XRG.hist.length; i++) XRG.histT.push(0); XRG.histI = 0; }
+  var s = BODY.look * k;                                 /* the gorillas standing about are what other players will look like */
   if (XRG.on) fighters.forEach(function (f) { f.root.scale.setScalar(s); });
   XRG.spheres = fighters.map(function (f) { return { x: f.root.position.x, y: f.root.position.y + 0.72 * s, z: f.root.position.z, r: 0.5 * s }; });
 }
-function reach() {                                       /* how much longer than yours the gorilla's arms are, so the ground sits at your waist */
-  var eye = Math.min(2.05, Math.max(1.0, XRG.eyeH)), R = Math.min(0.85, Math.max(0.3, 0.38 * eye + XRG.groundAdj)), p = BODY.pivot;
-  XRG.arm = Math.min(2.0, Math.max(1.0, (XRG.E / XRG.k - p) / (R - p)));
-}
+function reach() { xrDims(); }                           /* the left stick moves the ground closer or further: that changes how low the body hangs under the head, nothing else */
 /* ---------------- the solid world: every surface you can touch, sorted into a grid of cells ---------------- */
 /* Lights, wires, bulbs, marks on surfaces and little things (bottles, labels, bananas, the hats on show) are left out, so a hand never snags on them. */
 var NOHIT = { fillW: 1, roofF: 1, copF: 1, tankF: 1, netS: 1, wire: 1, bulbE: 1, dripS: 1, poolO: 1, poolF: 1, blob: 1, strip: 1, puddle: 1, cardF: 1, glassB: 1, glassBr: 1, labelP: 1, banana: 1, tape: 1, itemA: 1, itemB: 1, itemC: 1, stain1: 1, stain2: 1, drip: 1, rustDrip: 1 };
@@ -163,13 +162,13 @@ function pushOut(p, r, physics) {                        /* if a sphere round p 
   }
   return true;
 }
-function settle(physics) {                               /* the head and the body under it never sit inside anything */
+function settle(physics) {                               /* the head, and the short body hanging under it, never sit inside anything */
   var D = XRG.D;
-  for (var it = 0; it < 5; it++) {
+  for (var it = 0; it < 6; it++) {
     toWorld(XRG.headLocal, HW);
     if (pushOut(HW, D.rHead, physics)) continue;
-    BW.set(HW.x, HW.y - D.drop, HW.z);
-    if (pushOut(BW, D.rBody, physics)) continue;
+    BW.set(HW.x, HW.y - D.drop, HW.z); if (pushOut(BW, D.rBody, physics)) continue;
+    BW.set(HW.x, HW.y - D.drop * 0.5, HW.z); if (pushOut(BW, D.rBody, physics)) continue;
     break;
   }
 }
@@ -194,10 +193,8 @@ function castHand(start, move, r) {                      /* slide a hand from st
   if (q.hit) { CAST.hit = true; CAST.kind = q.kind; }
   return CAST;
 }
-function handTarget(h, out) {                            /* where the tracked hand is in the street: out from the chest by the gorilla's longer arms, no further than an arm from the head */
-  var a = XRG.arm, py = XRG.headLocal.y - BODY.pivot;
-  LW.set(XRG.headLocal.x + (h.local.x - XRG.headLocal.x) * a, py + (h.local.y - py) * a, XRG.headLocal.z + (h.local.z - XRG.headLocal.z) * a);
-  toWorld(LW, out);
+function handTarget(h, out) {                            /* your hand in the street: exactly where your real hand is, as in Gorilla Tag */
+  toWorld(h.local, out);
   var d = out.distanceTo(HW), max = XRG.D.maxArm;
   if (d > max) out.sub(HW).multiplyScalar(max / d).add(HW);
   return out;
@@ -212,11 +209,11 @@ function unstick() { toWorld(XRG.headLocal, HW); XRG.hands.forEach(function (h) 
 function xrStep(dt) {
   var D = XRG.D, H = XRG.hands, i, h;
   XRG.time += dt; START.copy(XRG.pos); XRG.ground = false;
-  if (XRG.floorKnown && XRG.time < XRG.calibUntil && XRG.headLocal.y > XRG.eyeH + 0.03 && XRG.headLocal.y < 2.1) { XRG.eyeH = XRG.headLocal.y; reach(); unstick(); }   /* stood up straighter in the first seconds */
+  if (!XRG.histT) xrDims();
   /* 1. falling and flying: gravity and whatever speed you have, the head and body kept out of everything */
   XRG.vel.y -= G * dt;
   moveBody(XRG.vel.x * dt, XRG.vel.y * dt, XRG.vel.z * dt, true);
-  if (XRG.ground) { var f = Math.exp(-4.5 * dt); XRG.vel.x *= f; XRG.vel.z *= f; }      /* the body slides a little when it lands, rather than stopping dead */
+  if (XRG.ground) { var hs_ = Math.hypot(XRG.vel.x, XRG.vel.z), cut = D.mu * G * dt, f = hs_ > cut ? (hs_ - cut) / hs_ : 0; XRG.vel.x *= f; XRG.vel.z *= f; }      /* sitting on the ground rubs, as Gorilla Tag's body does */
   /* 2. the hands: one that touches something holds on there, and the body moves to keep it there */
   toWorld(XRG.headLocal, HW);
   for (i = 0; i < 2; i++) {
@@ -243,10 +240,11 @@ function xrStep(dt) {
     if (castHand(h.last, TRAVEL, D.rHand).hit) { h.last.copy(CAST.pos); h.coll = true; h.kind = CAST.kind; } else h.last.copy(h.cur);
   }
   /* 4. the speed you leave a surface with is the average of the last few frames, a little more: that is the throw */
-  var v = XRG.hist[XRG.histI]; v.set((XRG.pos.x - START.x) / dt, (XRG.pos.y - START.y) / dt, (XRG.pos.z - START.z) / dt); XRG.histI = (XRG.histI + 1) % XRG.hist.length;
-  AVG.set(0, 0, 0); XRG.hist.forEach(function (w) { AVG.add(w); }); AVG.multiplyScalar(1 / XRG.hist.length);
+  var nh = XRG.hist.length, v = XRG.hist[XRG.histI], tsum = 0, j = XRG.histI, w; v.set((XRG.pos.x - START.x) / dt, (XRG.pos.y - START.y) / dt, (XRG.pos.z - START.z) / dt); XRG.histT[j] = dt; XRG.histI = (j + 1) % nh;
+  AVG.set(0, 0, 0); for (i = 0; i < nh && tsum < D.window - 1e-4; i++) { w = XRG.histT[j]; if (!w) break; AVG.addScaledVector(XRG.hist[j], w); tsum += w; j = (j + nh - 1) % nh; }      /* the last ninth of a second (8 frames in Gorilla Tag), whatever the frame rate */
+  AVG.multiplyScalar(1 / Math.max(tsum, D.window));
   if ((H[0].coll || H[1].coll) && AVG.length() > D.velLimit) {
-    XRG.vel.copy(AVG).multiplyScalar(1.15);
+    XRG.vel.copy(AVG).multiplyScalar(D.jump);
     var sp = XRG.vel.length(); if (sp > D.maxJump) XRG.vel.multiplyScalar(D.maxJump / sp);
   }
   /* 5. a hand left far behind lets go, unless something stands between it and the head */
@@ -271,8 +269,7 @@ function inStreet(x, z, y) {                             /* the alley, the stree
 }
 var FWD = V(0, 0, 0);
 function xrAlign() {                                     /* stand at the spawn, eyes at gorilla height, facing up the alley */
-  if (XRG.floorKnown && XRG.headLocal.y > 0.9) { XRG.eyeH = XRG.eyeMeasured ? Math.max(XRG.eyeH, XRG.headLocal.y) : XRG.headLocal.y; XRG.eyeMeasured = true; }   /* your real eye height sets the reach */
-  reach(); XRG.calibUntil = XRG.time + 8;
+  reach();
   FWD.set(0, 0, -1).applyQuaternion(XRG.headQ);
   XRG.yaw = XRG.spawn.yaw - Math.atan2(FWD.x, FWD.z);
   HW.set(XRG.spawn.pos.x, XRG.spawn.pos.y + XRG.E + 0.02, XRG.spawn.pos.z);
@@ -287,15 +284,15 @@ function pressed(h, i) { var g = h.src && h.src.gamepad; return !!(g && g.button
 function stickX(h) { var g = h.src && h.src.gamepad; if (!g || !g.axes) return 0; return g.axes.length > 2 ? g.axes[2] : g.axes[0] || 0; }
 function stickY(h) { var g = h.src && h.src.gamepad; if (!g || !g.axes) return 0; return g.axes.length > 3 ? g.axes[3] : g.axes[1] || 0; }
 function button(h, i) { if (h.testB) return h.testB[i] || 0; var g = h.src && h.src.gamepad; return g && g.buttons[i] ? (g.buttons[i].value || (g.buttons[i].pressed ? 1 : 0)) : 0; }
-function saveGround() { try { localStorage.setItem('silverback.ground', String(XRG.groundAdj)); } catch (e) {} }
-function loadGround() { try { var v = parseFloat(localStorage.getItem('silverback.ground')); if (isFinite(v)) XRG.groundAdj = Math.min(0.3, Math.max(-0.25, v)); } catch (e) {} }
+function saveGround() { try { localStorage.setItem('silverback.ground2', String(XRG.groundAdj)); } catch (e) {} }
+function loadGround() { try { var v = parseFloat(localStorage.getItem('silverback.ground2')); if (isFinite(v)) XRG.groundAdj = Math.min(0.3, Math.max(-0.25, v)); } catch (e) {} }
 function controls() {
   var L = XRG.hands[0], R = XRG.hands[1], sx = stickX(R);
   if (!XRG.held.turn && Math.abs(sx) > 0.7) { XRG.held.turn = true; turn(sx > 0 ? -Math.PI / 4 : Math.PI / 4); }      /* right stick: turn 45 degrees */
   else if (XRG.held.turn && Math.abs(sx) < 0.3) XRG.held.turn = false;
   var gy = stickY(L);                                    /* left stick up or down: the ground closer to your hands, or further */
   if (!XRG.held.ground && Math.abs(gy) > 0.7) {
-    XRG.held.ground = true; XRG.groundAdj = Math.min(0.3, Math.max(-0.25, XRG.groundAdj + (gy < 0 ? -0.03 : 0.03)));
+    XRG.held.ground = true; XRG.groundAdj = Math.min(0.3, Math.max(-0.15, +(XRG.groundAdj + (gy < 0 ? -0.03 : 0.03)).toFixed(2)));
     reach(); unstick(); saveGround();
     toast(gy < 0 ? 'Ground closer' : 'Ground further', 1.5);
   } else if (XRG.held.ground && Math.abs(gy) < 0.3) XRG.held.ground = false;
@@ -323,7 +320,7 @@ function readPoses(frame) {
 /* right hand, +Y up your arm. Fingers curl with the trigger and grip. The forearm is the gorilla's own, cut at the wrist and reaching to it.    */
 var MQ = new T.Quaternion(), YQ = new T.Quaternion(), GQ = new T.Quaternion(), MINV = new T.Matrix4(), UPV = V(0, 0, 0), TGT = V(0, 0, 0), POLE = V(0, 0, 0), FACE = V(0, 0, 0), YAX = V(0, 1, 0);
 var aS = V(0, 0, 0), aD = V(0, 0, 0), aE = V(0, 0, 0), aP = V(0, 0, 0), aA = V(0, 0, 0), aT = V(0, 0, 0), ax_ = V(0, 0, 0), ay_ = V(0, 0, 0), az_ = V(0, 0, 0), WR = V(0, 0, 0), D1 = V(0, 0, 0), D2 = V(0, 0, 0), P1 = V(0, 0, 0);
-var HAND = { scale: 1.32, palm: V(0.018, 0.028, 0.002), wrist: V(0.018, 0.088, 0.002), fingers: [-0.025, 0, 0.025], knuckle: [0.02, -0.012], r: 0.0135, l1: 0.042, l2: 0.036 };
+var HAND = { scale: 1.6, palm: V(0.018, 0.028, 0.002), wrist: V(0.018, 0.088, 0.002), fingers: [-0.025, 0, 0.025], knuckle: [0.02, -0.012], r: 0.0135, l1: 0.042, l2: 0.036 };
 function skinGeo(g, skin) {                              /* the gorilla shader's own attribute: skin (1) or fur (0), no darkening */
   var n = g.attributes.position.count, m = new Float32Array(n * 3);
   for (var i = 0; i < n; i++) { m[i * 3] = skin; m[i * 3 + 1] = 0; m[i * 3 + 2] = 1; }
@@ -369,9 +366,8 @@ function makeMe() {
   f.head.visible = false;                                /* your own head stays out of your eyes */
   var below = -(f.M.L2 + 0.03);
   f.arms.forEach(function (a) { a.fore.geometry = cutFore(a.fore.geometry, below); });
-  f.torso.material.uniforms.uGrain.value = 0.4;          /* close up, the fur's grain is softer so it doesn't look like blocks */
   var skinMat = material(F.skin, F.skin2, F.skin, null, 0, env), furMat = a0Fur(f);
-  XRG.handsVis = [makeHand(skinMat, furMat, true), makeHand(skinMat, furMat, false)];
+  XRG.handsVis = [makeHand(furMat, furMat, true), makeHand(furMat, furMat, false)];      /* the hands are the body's own dark skin, like every other gorilla's */
   XRG.handsVis.forEach(function (hp) { hp.group.visible = false; scene.add(hp.group); curlHand(hp, 0.2, 0.2, 0.2); });
   f.root.visible = false; scene.add(f.root); XRG.me = f;
 }
@@ -387,25 +383,25 @@ function reachArm(f, a, target, pole, face) {           /* shoulder to elbow to 
   var M = f.M, s = a.side;
   aS.set(s * M.shoulder[0], M.shoulder[1], M.shoulder[2]);
   aD.subVectors(target, aS);
-  var want = aD.length(), full = M.L1 + M.L2, st = Math.min(1.9, Math.max(1, want / (full - 0.01))), L1 = M.L1 * st, L2 = M.L2 * st;
+  var want = aD.length(), full = M.L1 + M.L2, st = Math.min(1.6, Math.max(1, want / (full - 0.01))), L1 = M.L1 * st, L2 = M.L2 * st;
   var dist = Math.min(Math.max(want, Math.abs(L1 - L2) + 0.01), L1 + L2 - 0.004);
   aD.normalize();
   var along = (L1 * L1 - L2 * L2 + dist * dist) / (2 * dist), outw = Math.sqrt(Math.max(L1 * L1 - along * along, 0));
   aP.copy(pole).addScaledVector(aD, -pole.dot(aD)).normalize();
   aE.copy(aS).addScaledVector(aD, along).addScaledVector(aP, outw);
-  aA.subVectors(aE, aS).normalize(); aimMe(a.upper, aS, aA, face, st, 0.72);
-  aT.copy(aS).addScaledVector(aD, dist); aA.subVectors(aT, aE).normalize(); aimMe(a.fore, aE, aA, face, st, 0.6);
+  aA.subVectors(aE, aS).normalize(); aimMe(a.upper, aS, aA, face, st, 0.9);
+  aT.copy(aS).addScaledVector(aD, dist); aA.subVectors(aT, aE).normalize(); aimMe(a.fore, aE, aA, face, st, 0.85);
 }
 function poseMe() {
   var f = XRG.me; if (!f) return;
-  var s = XRG.E / XRG.EYE0, hs = HAND.scale * XRG.k;
+  var s = BODY.look * XRG.k, hs = HAND.scale * XRG.k;
   toWorld(XRG.headLocal, HW);
   YQ.setFromAxisAngle(YAX, XRG.yaw); MQ.copy(YQ).multiply(XRG.headQ);
   FWD.set(0, 0, -1).applyQuaternion(MQ); UPV.set(0, 1, 0).applyQuaternion(MQ);
   var yaw = Math.atan2(FWD.x - UPV.x * FWD.y, FWD.z - UPV.z * FWD.y);          /* the body turns with the head, even when you look straight down */
   var c = Math.cos(yaw), sn = Math.sin(yaw), e = XRG.EYEM;
   f.root.rotation.set(0, yaw, 0); f.root.scale.setScalar(s);
-  f.root.position.set(HW.x - s * (e.x * c + e.z * sn), HW.y - s * e.y, HW.z - s * (-e.x * sn + e.z * c));
+  f.root.position.set(HW.x - s * (e.x * c + e.z * sn), HW.y - s * e.y - 0.08 * XRG.k, HW.z - s * (-e.x * sn + e.z * c));      /* the shoulders sit a little lower, so your own arms are not up in your face */
   f.root.updateMatrixWorld(true); MINV.copy(f.root.matrixWorld).invert();
   f.arms.forEach(function (a) {
     var h = a.side > 0 ? XRG.hands[0] : XRG.hands[1], hp = a.side > 0 ? XRG.handsVis[0] : XRG.handsVis[1];
@@ -558,7 +554,7 @@ function xrSetup(world) {
   if (window.__manual || window.__xrtest) window.__xr = {   /* for the tests: run the arm movement without a headset */
     build: function () { var n = buildCollision(world); if (typeof propsSettle === 'function') { PROPS.settled = false; propsSettle(); } return n; },
     size: function () { xrDims(); return XRG.D; },
-    eye: function (h, adj) { XRG.eyeH = h; XRG.groundAdj = adj || 0; reach(); return XRG.arm; },
+    eye: function () { reach(); return 1; }, ground: function (adj) { XRG.groundAdj = adj || 0; reach(); return { R: XRG.R, E: XRG.E, k: XRG.k, G: G }; },
     spawn: function (x, z, yaw, headY, y) { XRG.spawn.pos.set(x, y || 0, z); XRG.spawn.yaw = yaw || 0; XRG.headLocal.set(0, headY || 1.6, 0); XRG.headQ.set(0, 0, 0, 1); xrAlign(); return xrState(); },
     step: function (dt, head, L, R, n) {
       for (var k = 0; k < (n || 1); k++) {

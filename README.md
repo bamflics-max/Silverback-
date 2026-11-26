@@ -18,7 +18,7 @@ On a phone or computer the same page lets you look around the street instead.
 - **Ground too far or too close:** push the left stick up or down. The game remembers your setting.
 - **Back to the elevator:** press the left stick in.
 
-Everyone has the same body size, so fights are fair. Your real height only changes how far your arms stretch, so the ground is in reach for everyone.
+Your hands in the game are exactly where your real hands are. How hard a push throws you, gravity, and how low you sit are Gorilla Tag's own numbers, taken from its open-source movement code. At rest the ground sits about half a metre under your eyes; the left stick moves it.
 
 ## What's in it, and what isn't yet
 
@@ -42,4 +42,4 @@ They play in that order and loop round. Press the red key on the boombox's top t
 - The movement works like Gorilla Tag's open-source GorillaLocomotion (MIT license, Another Axiom), rewritten in JavaScript for this game. It lives in `src/part4_xr.js`. The loose things have their own small physics in `src/part5_props.js`, and the roofs are in `src/part2e_roofs.js`.
 - Everything is drawn from code; there are no model or image files.
 - `src/` has every part. Run `python3 build_page.py base_preview.html ../index.html fighter.json page_vr.json` inside `src/` to rebuild `index.html`.
-- `tests/` has the checks used while building it: the movement by numbers (`xr_sim.js`, `xr_crawl.js`), the loose things (`xr_props.js`) and runs in an emulated Quest 2 (`xr_iwer.js`, `xr_roofs.js`, using Meta's IWER). They were written for the machine that built this, so their paths need changing to run elsewhere.
+- `tests/` has the checks used while building it: the movement by numbers (`feel1.js` and `feel2.js`, run with `xr_dbg.js`: launches, running and wall climbing checked against Gorilla Tag's own figures), the loose things (`xr_props.js`) and runs in an emulated Quest 2 (`xr_iwer.js`, `xr_roofs.js`, using Meta's IWER). They were written for the machine that built this, so their paths need changing to run elsewhere.

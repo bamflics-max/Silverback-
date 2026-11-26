@@ -10,7 +10,7 @@ PROPS.add = function (type, o) { o.type = type; o.uni = LIGHTS; o.lamps = LAMPS;
 PROPS.sets = [];
 function ring4(rad, y, r) { return [[rad, y, 0, r], [-rad, y, 0, r], [0, y, rad, r], [0, y, -rad, r]]; }      /* small balls round a flat end, so a bottle or can stands on it instead of balancing on a point */
 var PTYPE = {                                            /* spheres: [x, y, z, r] measured up from the bottom of the thing */
-  bottle: { mass: 0.45, e: 0.22, mu: 0.4, spheres: ring4(0.021, 0.01, 0.01).concat([[0, 0.034, 0, 0.031], [0, 0.094, 0, 0.031], [0, 0.168, 0, 0.019], [0, 0.212, 0, 0.0155]]), breaks: 3.0, snd: 'glass' },      /* breaks: knocked off a crate, or dropped from a hand, it smashes */
+  bottle: { mass: 0.45, e: 0.22, mu: 0.4, spheres: ring4(0.021, 0.01, 0.01).concat([[0, 0.034, 0, 0.031], [0, 0.094, 0, 0.031], [0, 0.168, 0, 0.019], [0, 0.212, 0, 0.0155]]), breaks: 3.4, snd: 'glass' },      /* breaks: knocked off a crate, or dropped from a hand, it smashes */
   can: { mass: 0.3, e: 0.3, mu: 0.5, spheres: ring4(0.024, 0.008, 0.008).concat(ring4(0.024, 0.114, 0.008), [[0, 0.032, 0, 0.032], [0, 0.09, 0, 0.032]]), snd: 'can' },
   ball: { mass: 0.6, e: 0.85, mu: 0.75, spheres: [[0, 0.12, 0, 0.12]], snd: 'ball', roll: true },
   bag: { mass: 3.5, e: 0.04, mu: 0.95, spheres: null, snd: 'bag' },
