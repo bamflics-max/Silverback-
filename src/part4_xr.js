@@ -6,36 +6,37 @@
 /* rules follow Gorilla Tag's open-source GorillaLocomotion (MIT,      */
 /* Another Axiom); this is a fresh JavaScript version for this page.   */
 /* ================================================================== */
-/* k: how many times bigger than you your gorilla is (your arms reach k times as far). E: how high its eyes sit off the ground, resting on its body. */
-/* E / k is the same for all three, about 0.8 m, so the ground always meets your hands near your thighs, the way it does in Gorilla Tag.     */
-var SIZES = [{ name: 'Gorilla Tag size', k: 1.0, E: 0.8 }, { name: 'Big', k: 1.3, E: 1.05 }, { name: 'Silverback size', k: 1.6, E: 1.3 }];
+/* k: how many times bigger than you your gorilla is: the street looks 1/k its size to you. E: how high its eyes sit off the ground, resting on its body.  */
+/* Every player gets the same body (fair fights); what changes per player is how far the arms reach: they are lengthened from the chest just enough   */
+/* that the ground meets your real hands at about your waist, so nobody has to bend down to move. The left stick tunes that, and it is remembered.    */
+var BODY = { k: 1.3, E: 0.95, pivot: 0.22 };
 var G = 9.8;
 var XRG = {
   on: false, session: null, ref: null, cam: null, rig: null, me: null, world: null, button: null,
-  size: 1, k: 1.3, E: 1.05, D: null, EYE0: 1.347, EYEM: V(0, 1.347, 0.342),
+  k: BODY.k, E: BODY.E, D: null, EYE0: 1.347, EYEM: V(0, 1.347, 0.342), arm: 1.3, eyeH: 1.55, eyeMeasured: false, calibUntil: 0, groundAdj: 0, floorKnown: false,
   pos: V(0, 0, 0), yaw: 0, vel: V(0, 0, 0), ground: false, time: 0,
   headLocal: V(0, 1.6, 0), headQ: new T.Quaternion(), poseSeen: false, aligned: false, failed: false,
-  hands: ['left', 'right'].map(function (side) { return { side: side, arm: side === 'left' ? 1 : -1, local: V(0, 0, 0), q: new T.Quaternion(), cur: V(0, 0, 0), last: V(0, 0, 0), prev: V(0, 0, 0), was: false, coll: false, kind: 0, src: null, tracked: false, tapAt: 0 }; }),
+  hands: ['left', 'right'].map(function (side) { return { side: side, arm: side === 'left' ? 1 : -1, local: V(0, 0, 0), q: new T.Quaternion(), wq: new T.Quaternion(), cur: V(0, 0, 0), last: V(0, 0, 0), prev: V(0, 0, 0), was: false, coll: false, kind: 0, src: null, tracked: false, tapAt: 0, held: null, fistWas: false, testB: null }; }),
   hist: [], histI: 0, spheres: [], col: null, spawn: { pos: V(0.3, 0, 2.6), yaw: 0 },
-  held: { turn: false, size: false, home: false }, toast: null, toastT: 0
+  held: { turn: false, ground: false, home: false }, toast: null, toastT: 0
 };
 var HW = V(0, 0, 0), BW = V(0, 0, 0), TMP = V(0, 0, 0), MOVE = V(0, 0, 0), TRAVEL = V(0, 0, 0), START = V(0, 0, 0), AVG = V(0, 0, 0), OFF = V(0, 0, 0), LW = V(0, 0, 0);
 var FIRST = [V(0, 0, 0), V(0, 0, 0)];
 
-function xrSize(i, live) {                               /* live: in the headset, so keep the head where it is and resize the others too */
-  var z = SIZES[i];
-  if (live) toWorld(XRG.headLocal, HW);
-  XRG.size = i; XRG.k = z.k; XRG.E = z.E;
-  XRG.D = { rHand: 0.065 * z.E, rHead: 0.17 * z.E, rBody: 0.3 * z.E, drop: 0.7 * z.E, maxArm: 1.25 * z.k, unstick: z.k, velLimit: 0.3 * z.k, maxJump: 6.5 * Math.pow(z.k, 0.75) };
-  var s = z.E / XRG.EYE0;                                /* every gorilla is the player's size, so the ones standing about are what other players will look like */
+function xrDims() {                                      /* the body: the same for everyone */
+  var E = XRG.E, k = XRG.k;
+  XRG.D = { rHand: 0.065 * E, rHead: 0.17 * E, rBody: 0.3 * E, drop: 0.7 * E, maxArm: 1.42 * E, unstick: k, velLimit: 0.3 * k, maxJump: 6.5 * Math.pow(k, 0.75) };
+  var s = E / XRG.EYE0;                                  /* the gorillas standing about are what other players will look like, so they are this size too */
   if (XRG.on) fighters.forEach(function (f) { f.root.scale.setScalar(s); });
   XRG.spheres = fighters.map(function (f) { return { x: f.root.position.x, y: f.root.position.y + 0.72 * s, z: f.root.position.z, r: 0.5 * s }; });
-  if (live) { placeAround(HW); settle(false); unstick(); }
 }
-
+function reach() {                                       /* how much longer than yours the gorilla's arms are, so the ground sits at your waist */
+  var eye = Math.min(2.05, Math.max(1.0, XRG.eyeH)), R = Math.min(0.85, Math.max(0.3, 0.38 * eye + XRG.groundAdj)), p = BODY.pivot;
+  XRG.arm = Math.min(2.0, Math.max(1.0, (XRG.E / XRG.k - p) / (R - p)));
+}
 /* ---------------- the solid world: every surface you can touch, sorted into a grid of cells ---------------- */
 /* Lights, wires, bulbs, marks on surfaces and little things (bottles, labels, bananas, the hats on show) are left out, so a hand never snags on them. */
-var NOHIT = { wire: 1, bulbE: 1, dripS: 1, poolO: 1, poolF: 1, blob: 1, strip: 1, puddle: 1, cardF: 1, glassB: 1, glassBr: 1, labelP: 1, banana: 1, tape: 1, itemA: 1, itemB: 1, itemC: 1, stain1: 1, stain2: 1, drip: 1, rustDrip: 1 };
+var NOHIT = { fillW: 1, roofF: 1, copF: 1, tankF: 1, netS: 1, wire: 1, bulbE: 1, dripS: 1, poolO: 1, poolF: 1, blob: 1, strip: 1, puddle: 1, cardF: 1, glassB: 1, glassBr: 1, labelP: 1, banana: 1, tape: 1, itemA: 1, itemB: 1, itemC: 1, stain1: 1, stain2: 1, drip: 1, rustDrip: 1 };
 /* what each surface sounds like under a hand: 0 stone, 1 metal, 2 wood, 3 soft, 4 glass */
 var KIND = { steelK: 1, steelG: 1, galv: 1, panelK: 1, lidK: 1, paintG: 1, drumB: 1, drumR: 1, drumK: 1, drumLid: 1, drumIn: 1, rustS: 1, doorG: 1, shutter: 1, grate: 1, hazardS: 1, fenceS: 1, rimO: 1, hydR: 1, callB: 1,
   woodS: 2, boards: 2, card: 2, shopF: 2, boardW: 2,
@@ -193,8 +194,9 @@ function castHand(start, move, r) {                      /* slide a hand from st
   if (q.hit) { CAST.hit = true; CAST.kind = q.kind; }
   return CAST;
 }
-function handTarget(h, out) {                            /* where the tracked hand is in the street: the grip, a little forward to the knuckles, no further than an arm from the head */
-  OFF.set(0, 0, -0.03).applyQuaternion(h.q); LW.copy(h.local).add(OFF);
+function handTarget(h, out) {                            /* where the tracked hand is in the street: out from the chest by the gorilla's longer arms, no further than an arm from the head */
+  var a = XRG.arm, py = XRG.headLocal.y - BODY.pivot;
+  LW.set(XRG.headLocal.x + (h.local.x - XRG.headLocal.x) * a, py + (h.local.y - py) * a, XRG.headLocal.z + (h.local.z - XRG.headLocal.z) * a);
   toWorld(LW, out);
   var d = out.distanceTo(HW), max = XRG.D.maxArm;
   if (d > max) out.sub(HW).multiplyScalar(max / d).add(HW);
@@ -210,10 +212,11 @@ function unstick() { toWorld(XRG.headLocal, HW); XRG.hands.forEach(function (h) 
 function xrStep(dt) {
   var D = XRG.D, H = XRG.hands, i, h;
   XRG.time += dt; START.copy(XRG.pos); XRG.ground = false;
+  if (XRG.floorKnown && XRG.time < XRG.calibUntil && XRG.headLocal.y > XRG.eyeH + 0.03 && XRG.headLocal.y < 2.1) { XRG.eyeH = XRG.headLocal.y; reach(); unstick(); }   /* stood up straighter in the first seconds */
   /* 1. falling and flying: gravity and whatever speed you have, the head and body kept out of everything */
   XRG.vel.y -= G * dt;
   moveBody(XRG.vel.x * dt, XRG.vel.y * dt, XRG.vel.z * dt, true);
-  if (XRG.ground) { var f = Math.exp(-10 * dt); XRG.vel.x *= f; XRG.vel.z *= f; }
+  if (XRG.ground) { var f = Math.exp(-4.5 * dt); XRG.vel.x *= f; XRG.vel.z *= f; }      /* the body slides a little when it lands, rather than stopping dead */
   /* 2. the hands: one that touches something holds on there, and the body moves to keep it there */
   toWorld(XRG.headLocal, HW);
   for (i = 0; i < 2; i++) {
@@ -243,7 +246,7 @@ function xrStep(dt) {
   var v = XRG.hist[XRG.histI]; v.set((XRG.pos.x - START.x) / dt, (XRG.pos.y - START.y) / dt, (XRG.pos.z - START.z) / dt); XRG.histI = (XRG.histI + 1) % XRG.hist.length;
   AVG.set(0, 0, 0); XRG.hist.forEach(function (w) { AVG.add(w); }); AVG.multiplyScalar(1 / XRG.hist.length);
   if ((H[0].coll || H[1].coll) && AVG.length() > D.velLimit) {
-    XRG.vel.copy(AVG).multiplyScalar(1.1);
+    XRG.vel.copy(AVG).multiplyScalar(1.15);
     var sp = XRG.vel.length(); if (sp > D.maxJump) XRG.vel.multiplyScalar(D.maxJump / sp);
   }
   /* 5. a hand left far behind lets go, unless something stands between it and the head */
@@ -258,13 +261,18 @@ function xrStep(dt) {
   }
   /* 6. fell out of the street, or climbed over a wall: back to the elevator */
   toWorld(XRG.headLocal, HW);
-  if (HW.y < -4 || HW.y > 22 || !inStreet(HW.x, HW.z)) { XRG.aligned = false; XRG.vel.set(0, 0, 0); toast('Back to the elevator', 2.5); }
+  if (HW.y < -4 || HW.y > 27 || !inStreet(HW.x, HW.z, HW.y)) { XRG.aligned = false; XRG.vel.set(0, 0, 0); toast('Back to the elevator', 2.5); }
 }
-function inStreet(x, z) {                                /* the alley, the street, and the yard with the roof beside it */
-  return (x > -5.9 && x < 4.5 && z > -3.8 && z < 24.6) || (x > -8.6 && x < 40.6 && z > 23.4 && z < 36.9) || (x > 21.4 && x < 40.6 && z > 13.4 && z < 24.6);
+function inStreet(x, z, y) {                             /* the alley, the street, the yard; and on the headset page every roof (but never inside a building) */
+  if ((x > -5.9 && x < 4.5 && z > -3.8 && z < 24.6) || (x > -8.6 && x < 40.6 && z > 23.4 && z < 36.9) || (x > 21.4 && x < 40.6 && z > 13.4 && z < 24.6)) return true;
+  if (typeof roofAt !== 'function' || !ROOF.grid) return false;
+  var h = roofAt(x, z);
+  return h !== null && (y === undefined || h < 0 || y > h - 0.4);
 }
 var FWD = V(0, 0, 0);
 function xrAlign() {                                     /* stand at the spawn, eyes at gorilla height, facing up the alley */
+  if (XRG.floorKnown && XRG.headLocal.y > 0.9) { XRG.eyeH = XRG.eyeMeasured ? Math.max(XRG.eyeH, XRG.headLocal.y) : XRG.headLocal.y; XRG.eyeMeasured = true; }   /* your real eye height sets the reach */
+  reach(); XRG.calibUntil = XRG.time + 8;
   FWD.set(0, 0, -1).applyQuaternion(XRG.headQ);
   XRG.yaw = XRG.spawn.yaw - Math.atan2(FWD.x, FWD.z);
   HW.set(XRG.spawn.pos.x, XRG.spawn.pos.y + XRG.E + 0.02, XRG.spawn.pos.z);
@@ -277,13 +285,20 @@ function turn(d) { toWorld(XRG.headLocal, HW); XRG.yaw += d; placeAround(HW); un
 /* ---------------- the controllers ---------------- */
 function pressed(h, i) { var g = h.src && h.src.gamepad; return !!(g && g.buttons[i] && g.buttons[i].pressed); }
 function stickX(h) { var g = h.src && h.src.gamepad; if (!g || !g.axes) return 0; return g.axes.length > 2 ? g.axes[2] : g.axes[0] || 0; }
+function stickY(h) { var g = h.src && h.src.gamepad; if (!g || !g.axes) return 0; return g.axes.length > 3 ? g.axes[3] : g.axes[1] || 0; }
+function button(h, i) { if (h.testB) return h.testB[i] || 0; var g = h.src && h.src.gamepad; return g && g.buttons[i] ? (g.buttons[i].value || (g.buttons[i].pressed ? 1 : 0)) : 0; }
+function saveGround() { try { localStorage.setItem('silverback.ground', String(XRG.groundAdj)); } catch (e) {} }
+function loadGround() { try { var v = parseFloat(localStorage.getItem('silverback.ground')); if (isFinite(v)) XRG.groundAdj = Math.min(0.3, Math.max(-0.25, v)); } catch (e) {} }
 function controls() {
   var L = XRG.hands[0], R = XRG.hands[1], sx = stickX(R);
   if (!XRG.held.turn && Math.abs(sx) > 0.7) { XRG.held.turn = true; turn(sx > 0 ? -Math.PI / 4 : Math.PI / 4); }      /* right stick: turn 45 degrees */
   else if (XRG.held.turn && Math.abs(sx) < 0.3) XRG.held.turn = false;
-  var sz = pressed(R, 5) || pressed(L, 5);              /* B or Y: try the next size */
-  if (sz && !XRG.held.size) { xrSize((XRG.size + 1) % SIZES.length, true); toast(SIZES[XRG.size].name, 2.5); }
-  XRG.held.size = sz;
+  var gy = stickY(L);                                    /* left stick up or down: the ground closer to your hands, or further */
+  if (!XRG.held.ground && Math.abs(gy) > 0.7) {
+    XRG.held.ground = true; XRG.groundAdj = Math.min(0.3, Math.max(-0.25, XRG.groundAdj + (gy < 0 ? -0.03 : 0.03)));
+    reach(); unstick(); saveGround();
+    toast(gy < 0 ? 'Ground closer' : 'Ground further', 1.5);
+  } else if (XRG.held.ground && Math.abs(gy) < 0.3) XRG.held.ground = false;
   var home = pressed(L, 3);                             /* the left stick pressed in: back to the elevator */
   if (home && !XRG.held.home) { XRG.aligned = false; toast('Back to the elevator', 2.5); }
   XRG.held.home = home;
@@ -302,38 +317,88 @@ function readPoses(frame) {
   }
 }
 
-/* ---------------- you: your own gorilla's arms and body, under your eyes ---------------- */
+/* ---------------- you: your own gorilla's hands, arms and chest ---------------- */
+/* The hands are their own small model in the controller's grip space (metres, a real hand's size): a broad palm, three thick fingers and a      */
+/* thumb, as picked for the character. The grip's origin is the middle of your closed fist, -Z runs toward your thumb, +X out of the back of your */
+/* right hand, +Y up your arm. Fingers curl with the trigger and grip. The forearm is the gorilla's own, cut at the wrist and reaching to it.    */
 var MQ = new T.Quaternion(), YQ = new T.Quaternion(), GQ = new T.Quaternion(), MINV = new T.Matrix4(), UPV = V(0, 0, 0), TGT = V(0, 0, 0), POLE = V(0, 0, 0), FACE = V(0, 0, 0), YAX = V(0, 1, 0);
-var aS = V(0, 0, 0), aD = V(0, 0, 0), aE = V(0, 0, 0), aP = V(0, 0, 0), aA = V(0, 0, 0), aT = V(0, 0, 0), ax_ = V(0, 0, 0), ay_ = V(0, 0, 0), az_ = V(0, 0, 0);
-var KNUCKLE = 0.79;                                      /* elbow to knuckles on the gorilla's forearm, which ends in its fist */
+var aS = V(0, 0, 0), aD = V(0, 0, 0), aE = V(0, 0, 0), aP = V(0, 0, 0), aA = V(0, 0, 0), aT = V(0, 0, 0), ax_ = V(0, 0, 0), ay_ = V(0, 0, 0), az_ = V(0, 0, 0), WR = V(0, 0, 0), D1 = V(0, 0, 0), D2 = V(0, 0, 0), P1 = V(0, 0, 0);
+var HAND = { scale: 1.32, palm: V(0.018, 0.028, 0.002), wrist: V(0.018, 0.088, 0.002), fingers: [-0.025, 0, 0.025], knuckle: [0.02, -0.012], r: 0.0135, l1: 0.042, l2: 0.036 };
+function skinGeo(g, skin) {                              /* the gorilla shader's own attribute: skin (1) or fur (0), no darkening */
+  var n = g.attributes.position.count, m = new Float32Array(n * 3);
+  for (var i = 0; i < n; i++) { m[i * 3] = skin; m[i * 3 + 1] = 0; m[i * 3 + 2] = 1; }
+  g.setAttribute('mask', new T.BufferAttribute(m, 3)); return g;
+}
+function capsule(r, len, skin) {                         /* a rounded stick from y = 0 to y = len */
+  var prof = [], i, n = 6;
+  for (i = 0; i <= n; i++) { var a = -Math.PI / 2 + Math.PI / 2 * i / n; prof.push(new T.Vector2(Math.max(1e-4, Math.cos(a) * r), r + Math.sin(a) * r)); }
+  for (i = 0; i <= n; i++) { var b = Math.PI / 2 * i / n; prof.push(new T.Vector2(Math.max(1e-4, Math.cos(b) * r), len - r + Math.sin(b) * r)); }
+  return skinGeo(new T.LatheGeometry(prof, 12), skin);
+}
+function cutFore(g, below) {                             /* the gorilla's forearm without its own (much bigger) hand */
+  var pos = g.attributes.position.array, idx = g.index.array, keep = [];
+  for (var t = 0; t < idx.length; t += 3) { if (pos[idx[t] * 3 + 1] >= below && pos[idx[t + 1] * 3 + 1] >= below && pos[idx[t + 2] * 3 + 1] >= below) keep.push(idx[t], idx[t + 1], idx[t + 2]); }
+  var c = new T.BufferGeometry();
+  ['position', 'normal', 'mask', 'paint'].forEach(function (k) { if (g.attributes[k]) c.setAttribute(k, g.attributes[k]); });
+  c.setIndex(keep); return c;
+}
+function makeHand(skinMat, furMat, left) {
+  var g = new T.Group(), H = HAND, parts = { group: g, fingers: [], thumb: [] };
+  var palm = new T.Mesh(skinGeo(new T.SphereGeometry(1, 18, 12), 1), skinMat); palm.scale.set(0.018, 0.044, 0.045); palm.position.copy(H.palm); g.add(palm);
+  var bar = new T.Mesh(capsule(0.016, 0.074, 1), skinMat); bar.position.set(0.02, -0.006, -0.037); bar.rotation.x = Math.PI / 2; g.add(bar);       /* the row of knuckles */
+  var cuff = new T.Mesh(capsule(0.029, 0.1, 0), furMat); cuff.position.set(0.016, 0.045, 0.002); g.add(cuff);                                     /* fur at the wrist, where the arm joins */
+  H.fingers.forEach(function () { var a = new T.Mesh(capsule(H.r, H.l1 + H.r, 1), skinMat), b = new T.Mesh(capsule(H.r * 0.95, H.l2 + H.r, 1), skinMat); g.add(a); g.add(b); parts.fingers.push([a, b]); });
+  var t1 = new T.Mesh(capsule(H.r, 0.036, 1), skinMat), t2 = new T.Mesh(capsule(H.r * 0.93, 0.032, 1), skinMat); g.add(t1); g.add(t2); parts.thumb = [t1, t2];
+  parts.side = left ? -1 : 1; g.scale.set(left ? -1 : 1, 1, 1);
+  return parts;
+}
+function curlHand(hp, index, rest, thumb) {             /* index, rest, thumb: 0 open to 1 closed */
+  var H = HAND;
+  H.fingers.forEach(function (z, i) {
+    var c = i === 0 ? index : rest, f1 = 0.25 + 1.2 * c, f2 = f1 + 0.3 + 1.4 * c, seg = hp.fingers[i];
+    D1.set(-Math.sin(f1), -Math.cos(f1), 0); D2.set(-Math.sin(f2), -Math.cos(f2), 0);
+    seg[0].position.set(H.knuckle[0], H.knuckle[1], z); seg[0].quaternion.setFromUnitVectors(YAX, D1);
+    P1.copy(seg[0].position).addScaledVector(D1, H.l1); seg[1].position.copy(P1); seg[1].quaternion.setFromUnitVectors(YAX, D2);
+  });
+  D1.set(-0.15 - 0.6 * thumb, -0.4, -0.9 + 0.45 * thumb).normalize(); D2.set(-0.3 - 0.75 * thumb, -0.55, -0.75 + 0.6 * thumb).normalize();
+  hp.thumb[0].position.set(0.006, 0.02, -0.038); hp.thumb[0].quaternion.setFromUnitVectors(YAX, D1);
+  P1.copy(hp.thumb[0].position).addScaledVector(D1, 0.036); hp.thumb[1].position.copy(P1); hp.thumb[1].quaternion.setFromUnitVectors(YAX, D2);
+}
 function makeMe() {
-  var f = makeFighter(V(0, 0, 0), 0, 'stand', 0, STREET_LOOK);
+  var f = makeFighter(V(0, 0, 0), 0, 'stand', 0, STREET_LOOK), F = DATA.faces['new'], env = envAt(V(0, 0, 0), 0, STREET_LOOK);
   f.head.visible = false;                                /* your own head stays out of your eyes */
+  var below = -(f.M.L2 + 0.03);
+  f.arms.forEach(function (a) { a.fore.geometry = cutFore(a.fore.geometry, below); });
+  f.torso.material.uniforms.uGrain.value = 0.4;          /* close up, the fur's grain is softer so it doesn't look like blocks */
+  var skinMat = material(F.skin, F.skin2, F.skin, null, 0, env), furMat = a0Fur(f);
+  XRG.handsVis = [makeHand(skinMat, furMat, true), makeHand(skinMat, furMat, false)];
+  XRG.handsVis.forEach(function (hp) { hp.group.visible = false; scene.add(hp.group); curlHand(hp, 0.2, 0.2, 0.2); });
   f.root.visible = false; scene.add(f.root); XRG.me = f;
 }
-function aimMe(mesh, from, axis, facing, st) {
+function a0Fur(f) { return f.torso.material; }           /* the body's own fur */
+function aimMe(mesh, from, axis, facing, st, thin) {    /* thin: your own arms are slimmer than the others' so they don't fill your view */
   ay_.copy(axis).negate();
   az_.copy(facing).addScaledVector(axis, -facing.dot(axis));
   if (az_.lengthSq() < 0.04) { az_.set(0, 1, 0).addScaledVector(axis, -axis.y); if (az_.lengthSq() < 0.04) az_.set(0, 0, 1).addScaledVector(axis, -axis.z); }
-  az_.normalize(); ax_.crossVectors(ay_, az_); ay_.multiplyScalar(st);
+  az_.normalize(); ax_.crossVectors(ay_, az_); ay_.multiplyScalar(st); ax_.multiplyScalar(thin); az_.multiplyScalar(thin);
   mesh.matrix.makeBasis(ax_, ay_, az_).setPosition(from); mesh.matrixWorldNeedsUpdate = true;
 }
-function reachArm(f, a, target, pole, face) {           /* shoulder to elbow to knuckles; an arm too short to reach stretches a little */
+function reachArm(f, a, target, pole, face) {           /* shoulder to elbow to wrist; an arm too short to reach stretches */
   var M = f.M, s = a.side;
   aS.set(s * M.shoulder[0], M.shoulder[1], M.shoulder[2]);
   aD.subVectors(target, aS);
-  var want = aD.length(), full = M.L1 + KNUCKLE, st = Math.min(1.5, Math.max(1, want / (full - 0.01))), L1 = M.L1 * st, L2 = KNUCKLE * st;
+  var want = aD.length(), full = M.L1 + M.L2, st = Math.min(1.9, Math.max(1, want / (full - 0.01))), L1 = M.L1 * st, L2 = M.L2 * st;
   var dist = Math.min(Math.max(want, Math.abs(L1 - L2) + 0.01), L1 + L2 - 0.004);
   aD.normalize();
   var along = (L1 * L1 - L2 * L2 + dist * dist) / (2 * dist), outw = Math.sqrt(Math.max(L1 * L1 - along * along, 0));
   aP.copy(pole).addScaledVector(aD, -pole.dot(aD)).normalize();
   aE.copy(aS).addScaledVector(aD, along).addScaledVector(aP, outw);
-  aA.subVectors(aE, aS).normalize(); aimMe(a.upper, aS, aA, face, st);
-  aT.copy(aS).addScaledVector(aD, dist); aA.subVectors(aT, aE).normalize(); aimMe(a.fore, aE, aA, face, st);
+  aA.subVectors(aE, aS).normalize(); aimMe(a.upper, aS, aA, face, st, 0.72);
+  aT.copy(aS).addScaledVector(aD, dist); aA.subVectors(aT, aE).normalize(); aimMe(a.fore, aE, aA, face, st, 0.6);
 }
 function poseMe() {
   var f = XRG.me; if (!f) return;
-  var s = XRG.E / XRG.EYE0;
+  var s = XRG.E / XRG.EYE0, hs = HAND.scale * XRG.k;
   toWorld(XRG.headLocal, HW);
   YQ.setFromAxisAngle(YAX, XRG.yaw); MQ.copy(YQ).multiply(XRG.headQ);
   FWD.set(0, 0, -1).applyQuaternion(MQ); UPV.set(0, 1, 0).applyQuaternion(MQ);
@@ -343,12 +408,18 @@ function poseMe() {
   f.root.position.set(HW.x - s * (e.x * c + e.z * sn), HW.y - s * e.y, HW.z - s * (-e.x * sn + e.z * c));
   f.root.updateMatrixWorld(true); MINV.copy(f.root.matrixWorld).invert();
   f.arms.forEach(function (a) {
-    var h = a.side > 0 ? XRG.hands[0] : XRG.hands[1];
-    a.upper.visible = a.fore.visible = h.tracked;
+    var h = a.side > 0 ? XRG.hands[0] : XRG.hands[1], hp = a.side > 0 ? XRG.handsVis[0] : XRG.handsVis[1];
+    a.upper.visible = a.fore.visible = hp.group.visible = h.tracked;
     if (!h.tracked) return;
-    TGT.copy(h.last).applyMatrix4(MINV);
+    GQ.copy(YQ).multiply(h.q); h.wq.copy(GQ);             /* the controller's turn in the street */
+    hp.group.position.copy(h.last); hp.group.quaternion.copy(GQ); hp.group.scale.set(hp.side * hs, hs, hs);
+    var grip = button(h, 1), trig = button(h, 0);
+    curlHand(hp, 0.15 + 0.85 * trig, 0.15 + 0.85 * grip, 0.15 + 0.85 * Math.max(grip, trig) * 0.9);
+    hp.group.updateMatrixWorld(true);
+    WR.copy(HAND.wrist).applyMatrix4(hp.group.matrixWorld);                    /* the arm reaches the wrist, not the knuckles */
+    TGT.copy(WR).applyMatrix4(MINV);
     POLE.set(a.side * 0.8, -0.5, -0.5);
-    GQ.copy(YQ).multiply(h.q); FACE.set(0, 0, -1).applyQuaternion(GQ).applyAxisAngle(YAX, -yaw);      /* knuckles face where the controller points */
+    FACE.set(hp.side, 0, 0).applyQuaternion(GQ).applyAxisAngle(YAX, -yaw);     /* the back of the forearm turns with the back of the hand */
     reachArm(f, a, TGT, POLE, FACE);
   });
 }
@@ -405,7 +476,7 @@ function xrFrameTick(dt, frame) {
     if (!XRG.aligned && XRG.poseSeen) xrAlign();
     if (XRG.aligned) {
       controls();
-      if (XRG.aligned) { xrStep(Math.min(dt, 1 / 30)); poseMe(); }
+      if (XRG.aligned) { xrStep(Math.min(dt, 1 / 30)); poseMe(); if (typeof propsStep === 'function') propsStep(Math.min(dt, 1 / 30)); }
     }
     if (XRG.toastT > 0) { XRG.toastT -= dt; if (XRG.toastT <= 0 && XRG.toast) XRG.toast.visible = false; }
   } catch (e) { if (!XRG.failed) { XRG.failed = true; problem('headset', e); } }
@@ -415,19 +486,23 @@ function xrFrameTick(dt, frame) {
 function xrEnter() {
   XRG.on = true; XRG.aligned = false; XRG.poseSeen = false; XRG.failed = false;
   if (!XRG.col) buildCollision(XRG.world);
-  xrSize(XRG.size, false);
+  if (typeof propsSettle === 'function') propsSettle();
+  xrDims(); loadGround();
   if (typeof WET !== 'undefined' && WET) WET.mesh.visible = false;      /* the mirrored wet ground costs a second picture each frame; the headset needs that time */
   if (!XRG.me) makeMe();
   XRG.me.root.visible = true;
   PIX.value = 0.0016;
   if (XRG.button) XRG.button.textContent = 'Exit VR';
-  toast('Push the ground with your hands to move', 8, 'Right stick turns · B or Y changes size');
+  toast('Push the ground with your hands to move', 8, 'Right stick turns \u00b7 Left stick moves the ground');
 }
 function xrExit() {
   XRG.on = false; XRG.session = null; XRG.ref = null;
+  if (typeof letGo === 'function') XRG.hands.forEach(function (h, i) { if (h.held) letGo(h, i); });
+  if (typeof boomOff === 'function') boomOff();
   fighters.forEach(function (f) { f.root.scale.setScalar(1); });
   if (typeof WET !== 'undefined' && WET) WET.mesh.visible = true;
   if (XRG.me) XRG.me.root.visible = false;
+  (XRG.handsVis || []).forEach(function (hp) { hp.group.visible = false; });
   if (XRG.button) XRG.button.textContent = 'Enter VR';
   resize();
 }
@@ -438,9 +513,12 @@ function xrStart() {
     XRG.session = session;
     session.addEventListener('end', xrExit);
     renderer.xr.enabled = true;
-    renderer.xr.setReferenceSpaceType('local');
     renderer.xr.setFramebufferScaleFactor(1.0);
-    return renderer.xr.setSession(session).then(function () {
+    return session.requestReferenceSpace('local-floor').then(function () { return 'local-floor'; }, function () { return 'local'; }).then(function (type) {
+      XRG.floorKnown = type === 'local-floor';
+      renderer.xr.setReferenceSpaceType(type);
+      return renderer.xr.setSession(session);
+    }).then(function () {
       XRG.ref = renderer.xr.getReferenceSpace();
       try { var layer = session.renderState.baseLayer; if (layer && 'fixedFoveation' in layer) layer.fixedFoveation = 0.5; } catch (e) {}
       xrEnter();
@@ -463,7 +541,7 @@ function xrButton() {
   navigator.xr.isSessionSupported('immersive-vr').then(function (ok) {
     if (!ok) { no(); return; }
     b.hidden = false; renderer.xr.enabled = true;
-    setTimeout(function () { try { if (!XRG.col) buildCollision(XRG.world); } catch (e) { problem('headset walls', e); } }, 500);    /* sort the walls before anyone presses the button */
+    setTimeout(function () { try { if (!XRG.col) buildCollision(XRG.world); if (typeof propsSettle === 'function') propsSettle(); } catch (e) { problem('headset walls', e); } }, 500);    /* sort the walls before anyone presses the button */
   }).catch(no);
 }
 function xrSetup(world) {
@@ -472,23 +550,36 @@ function xrSetup(world) {
   XRG.EYE0 = M.head[1] + eye[1]; XRG.EYEM = V(0, XRG.EYE0, M.head[2] + eye[2]);
   XRG.rig = new T.Group(); XRG.cam = new T.PerspectiveCamera(70, 1, 0.05, 160); XRG.rig.add(XRG.cam); scene.add(XRG.rig);
   for (var i = 0; i < 6; i++) XRG.hist.push(V(0, 0, 0));
-  xrSize(1, false);
+  xrDims();
   var sub = document.querySelector('.sub'); if (sub) SCENE.sub = sub.textContent;
+  if (typeof propsSetup === 'function') propsSetup();     /* the loose bottles, cans, ball and bags */
   xrButton();
   if (window.__xrtest) window.__xrg = XRG;              /* for the tests with an emulated headset */
   if (window.__manual || window.__xrtest) window.__xr = {   /* for the tests: run the arm movement without a headset */
-    build: function () { return buildCollision(world); },
-    size: function (i) { xrSize(i, false); return XRG.D; },
-    spawn: function (x, z, yaw, headY) { XRG.spawn.pos.set(x, 0, z); XRG.spawn.yaw = yaw || 0; XRG.headLocal.set(0, headY || 1.6, 0); XRG.headQ.set(0, 0, 0, 1); xrAlign(); return xrState(); },
+    build: function () { var n = buildCollision(world); if (typeof propsSettle === 'function') { PROPS.settled = false; propsSettle(); } return n; },
+    size: function () { xrDims(); return XRG.D; },
+    eye: function (h, adj) { XRG.eyeH = h; XRG.groundAdj = adj || 0; reach(); return XRG.arm; },
+    spawn: function (x, z, yaw, headY, y) { XRG.spawn.pos.set(x, y || 0, z); XRG.spawn.yaw = yaw || 0; XRG.headLocal.set(0, headY || 1.6, 0); XRG.headQ.set(0, 0, 0, 1); xrAlign(); return xrState(); },
     step: function (dt, head, L, R, n) {
       for (var k = 0; k < (n || 1); k++) {
         if (head) XRG.headLocal.set(head[0], head[1], head[2]);
-        [L, R].forEach(function (p, j) { var h = XRG.hands[j]; h.tracked = !!p; if (p) { h.local.set(p[0], p[1], p[2]); h.q.set(0, 0, 0, 1); } });
-        xrStep(dt);
+        [L, R].forEach(function (p, j) { var h = XRG.hands[j]; h.tracked = !!p; if (p) { h.local.set(p[0], p[1], p[2]); h.q.set(0, 0, 0, 1); h.wq.setFromAxisAngle(YAX, XRG.yaw); h.testB = p.length > 3 ? [p[3], p[4]] : null; } });
+        xrStep(dt); if (typeof propsStep === 'function') propsStep(dt);
       }
       return xrState();
     },
-    state: function () { return xrState(); }
+    state: function () { return xrState(); },
+    props: function () { return PROPS.list.map(function (P) { return { type: P.type, p: [+P.p.x.toFixed(3), +P.p.y.toFixed(3), +P.p.z.toFixed(3)], asleep: P.asleep, broken: P.broken, held: !!P.held }; }); },
+    poke: function (i, vx, vy, vz) { var P = PROPS.list[i]; propWake(P); P.v.set(vx, vy, vz); },
+    place: function (i, x, y, z, upright) { var P = PROPS.list[i]; P.p.set(x, y, z); if (upright) P.q.set(0, 0, 0, 1); P.v.set(0, 0, 0); P.w.set(0, 0, 0); propWake(P); },
+    raw: function (i) { var P = PROPS.list[i]; return { v: [P.v.x, P.v.y, P.v.z].map(function (n) { return +n.toFixed(4); }), w: [P.w.x, P.w.y, P.w.z].map(function (n) { return +n.toFixed(3); }), q: [P.q.x, P.q.y, P.q.z, P.q.w].map(function (n) { return +n.toFixed(4); }), still: +P.still.toFixed(2), ground: P.onGround, asleep: P.asleep }; },
+    clear: function (x, y, z, r) { return !nearest(x, y, z, r).hit; },
+    surface: function (x, y, z) { for (var yy = y; yy > y - 1.5; yy -= 0.004) { var q = nearest(x, yy, z, 0.003); if (q.hit) return +yy.toFixed(3); } return null; },
+    home: function (i) { var P = PROPS.list[i]; return { p: [P.home.p.x, P.home.p.y, P.home.p.z], base: P.baseY, type: P.type }; },
+    score: function () { return PROPS.score; },
+    call: function () { return { lit: PROPS.time < CALL.lit, said: CALL.said }; },
+    press: function () { boomToggle(); return BOOM.on; }, pressCall: function () { callPress(); return PROPS.time < CALL.lit; }, playing: function () { return BOOM.el ? { paused: BOOM.el.paused, t: BOOM.el.currentTime, src: BOOM.el.src, ready: BOOM.el.readyState } : null; },
+    boom: function () { return { on: BOOM.on, list: BOOM.list, at: BOOM.P && [BOOM.P.p.x, BOOM.P.p.y, BOOM.P.p.z], key: [BOOM.KP.x, BOOM.KP.y, BOOM.KP.z] }; }
   };
 }
 function xrState() {

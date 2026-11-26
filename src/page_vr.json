@@ -49,8 +49,10 @@
   "part2_scene.js",
   "part2c_street.js",
   "part2d_town.js",
+  "part2e_roofs.js",
   "scene_street.js",
   "part4_xr.js",
+  "part5_props.js",
   "part3_run.js"
  ]
 }

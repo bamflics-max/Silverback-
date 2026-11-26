@@ -262,10 +262,11 @@ function townFar(group, plates) {
   [-0.45, 0.45].forEach(function (d) { pipe('steelK', [V(40, 3.75, 29 + d), V(39.26, 3.55, 29 + d * 0.7)], 0.025, 6); pipe('steelK', [V(40, 3.0, 29 + d), V(39.26, 3.3, 29 + d * 0.7)], 0.025, 6); });
   box('boardW', V(39.22, 3.5, 29), 0.04, 1.05, 1.8, 0); box('rimO', V(39.195, 3.28, 29), 0.006, 0.45, 0.6, 0); box('boardW', V(39.19, 3.28, 29), 0.008, 0.37, 0.52, 0);
   var ring = []; for (i = 0; i <= 16; i++) ring.push(V(38.77 + Math.cos(i / 16 * 6.2832) * 0.23, 3.05, 29 + Math.sin(i / 16 * 6.2832) * 0.23));
-  pipe('rimO', ring, 0.012, 6); box('rimO', V(39.1, 3.04, 29), 0.2, 0.02, 0.1, 0); turned('fenceS', V(38.77, 2.62, 29), [[0.13, 0], [0.225, 0.43]], 14, 0);
+  pipe('rimO', ring, 0.012, 6); box('rimO', V(39.1, 3.04, 29), 0.2, 0.02, 0.1, 0); turned('netS', V(38.77, 2.62, 29), [[0.13, 0], [0.225, 0.43]], 14, 0);
   wallLamp(group, L[7], -1, 0); lightCone(group, V(SAT.hoop.x - 0.1, SAT.hoop.y, SAT.hoop.z), 2.6, 5.2, 0xdcebff, 0.16);
   groundPaint(group, TEX.court, 5.8, 4.9, 37.1, 29);
-  turned('ballO', V(36.9, 0, 27.6), [[0.0, 0], [0.085, 0.035], [0.12, 0.12], [0.085, 0.205], [0.0, 0.24]], 14, 0); shadow(36.9, 27.6, 0, 0.16);
+  if (typeof PROPS !== 'undefined' && PROPS.on) PROPS.add('ball', { x: 36.9, z: 27.6, y: 0 });
+  else { turned('ballO', V(36.9, 0, 27.6), [[0.0, 0], [0.085, 0.035], [0.12, 0.12], [0.085, 0.205], [0.0, 0.24]], 14, 0); shadow(36.9, 27.6, 0, 0.16); }
   plates.push([TEX.tagCrown, 1.6, 1.3, V(39.97, 2.0, 32.4), V(-1, 0, 0)]); plates.push([TEX.hands[0], 1.7, 2.5, V(39.97, 1.6, 26.2), V(-1, 0, 0)]);
   /* the practice yard: a fenced lot between two buildings */
   wallQ('brickR', 22, 14, 22, 24, 0, 14, 1, 0); trim('conc', 22, 14, 22, 24, 14.12, 0.3, 0.4, 1, 0); windowsOn(22, 15, 22, 23, 1, 0, [5.0, 8.0, 11.0], 3, 561, 0.3, 0.1);
@@ -340,7 +341,7 @@ var alleyMats = streetMats;
 streetMats = function () {
   function mat(o) { o.snap = false; return roomMat(o); }
   var m = alleyMats();
-  m.fenceS = mat({ tex: TEX.linkS, tile: 0.11, two: true, blend: true, gloss: 0.2 });
+  m.fenceS = mat({ tex: TEX.linkS, tile: 0.11, two: true, blend: true, gloss: 0.2 }); m.netS = mat({ tex: TEX.linkS, tile: 0.08, two: true, blend: true, color: 0xd9d5ca });
   m.tarpB = mat({ tex: TEX.tarpT, color: 0x33435c, two: true, grime: 0.3 }); m.tarpR = mat({ tex: TEX.tarpT, color: 0x5e302a, two: true, grime: 0.3 }); m.tarpG = mat({ tex: TEX.tarpT, color: 0x3a4a3e, two: true, grime: 0.3 });
   m.bagL1 = mat({ tex: TEX.leatherT, color: 0x7a3a33, gloss: 0.25, shine: 14, two: true }); m.bagL2 = mat({ tex: TEX.leatherT, color: 0x3a3d43, gloss: 0.25, shine: 14, two: true }); m.bagL3 = mat({ tex: TEX.leatherT, color: 0x8f8676, gloss: 0.1, two: true });
   m.awnS = mat({ tex: TEX.awn, color: 0x33435c, two: true, grime: 0.4 }); m.shopW = mat({ color: 0x6f6a5f, two: true }); m.shopF = mat({ tex: TEX.woodS, tile: 1.2, color: 0x9a8f80 });

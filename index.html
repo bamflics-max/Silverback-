@@ -1733,6 +1733,22 @@ function buildStreetTextures() {
     var t = smoothTex(new T.CanvasTexture(c)); t.userData = { w: 580, h: 490 }; return t;
   })();
   /* bills pasted on a wall, some half torn off */
+  TEX.meterF = canvasTex(128, 128, function (g, q, w, h) {      /* an electric meter's face under its glass: dial marks, the counter, the spinning disc's edge */
+    g.clearRect(0, 0, w, h); var c = w / 2;
+    g.fillStyle = '#9aa0a6'; g.beginPath(); g.arc(c, c, 62, 0, 7); g.fill();                   /* the steel rim */
+    g.fillStyle = '#e8e4da'; g.beginPath(); g.arc(c, c, 55, 0, 7); g.fill();
+    g.strokeStyle = '#2a2a2a'; g.lineWidth = 1.5; for (var k = 0; k < 5; k++) { var a = -2.4 + k * 1.2, ax = c - 26 + k * 13; g.beginPath(); g.arc(ax, 46, 5.5, 0, 7); g.stroke(); g.beginPath(); g.moveTo(ax, 46); g.lineTo(ax + Math.cos(a + k) * 4.5, 46 + Math.sin(a + k) * 4.5); g.stroke(); }
+    g.fillStyle = '#16181a'; g.fillRect(c - 24, 62, 48, 12); g.fillStyle = '#d9d5ca'; g.font = '600 10px "Urbanist", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('0 4 7 1 9', c, 68.5);
+    g.fillStyle = '#3a3d40'; g.fillRect(c - 30, 84, 60, 3); g.fillStyle = '#9e2a22'; g.fillRect(c - 4, 83, 8, 5);
+    g.fillStyle = '#2a2a2a'; g.font = '600 8px "Urbanist", sans-serif'; g.fillText('kWh', c, 97);
+    var gl = g.createRadialGradient(c - 18, c - 22, 2, c - 18, c - 22, 40); gl.addColorStop(0, 'rgba(255,255,255,0.55)'); gl.addColorStop(1, 'rgba(255,255,255,0)');      /* the glass catching the light */
+    g.fillStyle = gl; g.beginPath(); g.arc(c, c, 55, 0, 7); g.fill();
+  }, 917);
+  TEX.callL = canvasTex(256, 96, function (g, q, w, h) {      /* CALL, stamped into a plate */
+    g.clearRect(0, 0, w, h); g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '400 64px "Anton", sans-serif';
+    g.fillStyle = 'rgba(0,0,0,0.55)'; g.fillText('CALL', w / 2 + 2, h / 2 + 3); g.fillStyle = '#d6d2c6'; g.fillText('CALL', w / 2, h / 2);
+  }, 918);
+  TEX.couchF = plain(919, P_(['#2a2522', '#302a26', '#36302b', '#3c3530']), 64, 0.55, 0.16);      /* worn brown cloth: the fire does the warming */
   TEX.bill = [['#c9c2b0', '#141312', '#2f6bff', 851], ['#b7b1a1', '#141312', '#9e2f28', 852], ['#1a1a1c', '#d9d5ca', '#2f6bff', 853]].map(function (o) {
     var S = 300, W = Math.round(0.6 * S), H = Math.round(0.85 * S), c = document.createElement('canvas'), q = rand(o[3]), k, j; c.width = W; c.height = H;
     var g = c.getContext('2d'); g.fillStyle = o[0]; g.fillRect(0, 0, W, H);
@@ -1961,6 +1977,7 @@ function turned(key, c, prof, seg, rot) {
 function hash2(x, z, k) { var v = Math.sin(x * 12.9898 + z * 78.233 + (k || 0) * 37.719) * 43758.5453; return v - Math.floor(v); }      /* a steady random number for a place, so the same thing always looks the same */
 /* a full bin bag: sagging wide at the bottom, flat where it sits, pulled into creases, gathered and tied at the top */
 function bag(x, z, s, seed, key, y) {
+  if (typeof PROPS !== 'undefined' && PROPS.on && !PROPS.building) { PROPS.add('bag', { x: x, z: z, s: s, seed: seed, key: key, y: y || 0 }); return; }      /* loose, on the headset page */
   key = key || 'bagK'; y = y || 0;
   var q = rand(seed), ph = [q() * 6.28, q() * 6.28, q() * 6.28, q() * 6.28, q() * 6.28], nu = 20, nv = 12, yaw = q() * 6.28, ca = Math.cos(yaw), sa = Math.sin(yaw);
   var rx = 0.36 * s * (0.9 + q() * 0.25), rz = 0.33 * s * (0.9 + q() * 0.25), H = 0.46 * s * (0.9 + q() * 0.2), g = [], i, j, mid = V(x, y + H * 0.4, z);
@@ -2011,6 +2028,16 @@ function pallet(M) {                                     /* a wooden pallet: lie
   [-0.5, 0, 0.5].forEach(function (lx) { obox('woodS', M, lx, 0.07, 0, 0.1, 0.09, 1.0); });
   [-0.44, 0, 0.44].forEach(function (lz) { obox('woodS', M, 0, 0.011, lz, 1.2, 0.022, 0.1); });
 }
+function couch(x, z, ry, seed) {                         /* a worn three-seat couch, its back to a wall: x, z the middle of its front edge's foot, facing along ry */
+  var q = rand(seed), M = xf(x, 0, z, 0, ry, 0), W = 2.0, D = 0.86, i;
+  [[-0.92, -0.36], [0.92, -0.36], [-0.92, 0.36], [0.92, 0.36]].forEach(function (c) { obox('dark', M, c[0], 0.035, c[1], 0.07, 0.07, 0.07); });      /* stubby feet */
+  obox('couchF', M, 0, 0.2, 0, W, 0.26, D);                                                      /* the frame */
+  for (i = 0; i < 3; i++) obox('couchF', M.clone().multiply(xf((i - 1) * 0.6, 0.4, 0.07, (q() - 0.5) * 0.06, (q() - 0.5) * 0.06, (q() - 0.5) * 0.05)), 0, 0, 0, 0.58, 0.13, 0.64);      /* seat cushions, sat flat over the years */
+  obox('couchF', M.clone().multiply(xf(0, 0.33, -0.33, -0.18, 0, 0)), 0, 0.26, 0, W - 0.36, 0.56, 0.18);            /* the back, leaning a little */
+  for (i = 0; i < 3; i++) obox('couchF', M.clone().multiply(xf((i - 1) * 0.58, 0.47, -0.2, -0.3 + (q() - 0.5) * 0.1, (q() - 0.5) * 0.08, (q() - 0.5) * 0.06)), 0, 0.17, 0, 0.55, 0.36, 0.13);      /* back cushions, slumped */
+  [-1, 1].forEach(function (sd) { obox('couchF', M, sd * (W / 2 - 0.09), 0.32, 0, 0.18, 0.5, D); obox('couchF', M, sd * (W / 2 - 0.09), 0.58, 0.02, 0.22, 0.06, D + 0.02); });      /* the arms */
+  shadow(x - Math.sin(ry) * 0.05, z - Math.cos(ry) * 0.05, 0, 1.15, 0.6, ry);
+}
 function crate(c, s, ry) {                               /* a slatted wooden crate: posts at the corners, boards with gaps you can see into, a lid of boards */
   var M = xf(c.x, c.y, c.z, 0, ry || 0, 0), hs = s / 2, hb = s * 0.2, k;
   obox('dark', M, 0, hs, 0, s - 0.04, s - 0.03, s - 0.04);
@@ -2045,6 +2072,7 @@ function roadCone(x, z) {                                /* a road cone: a squar
 }
 /* a beer bottle with a paper label. y: what it stands on. lie: lying on its side, pointing that way round */
 function bottle(x, z, y, lie) {
+  if (typeof PROPS !== 'undefined' && PROPS.on && !PROPS.building) { PROPS.add('bottle', { x: x, z: z, y: y || 0, lie: lie }); return; }
   y = y || 0; var key = hash2(x, z, 3) < 0.6 ? 'glassBr' : 'glassB';
   if (lie === undefined) {
     turned(key, V(x, y, z), [[0.026, 0], [0.031, 0.006], [0.031, 0.125], [0.027, 0.15], [0.014, 0.185], [0.0125, 0.214], [0.0155, 0.217], [0.0155, 0.228], [0.0, 0.228]], 12, 0);
@@ -2069,12 +2097,12 @@ function conduit(x, nx, z0, z1, y, drops) {              /* cable pipes clipped 
     [y - 0.7, y - 1.7].forEach(function (yy) { if (yy > 0.3) box('galv', V(x + nx * 0.03, yy, z), 0.06, 0.035, 0.07, 0); });
   });
 }
-function meterBank(x, nx, z0, n, y) {                    /* electric meters on a wall that faces nx: a round glass on each box, a pipe up from each to a trunk, a breaker cabinet at the end */
+function meterBank(x, nx, z0, n, y, plates) {                    /* electric meters on a wall that faces nx: a round glass on each box, a pipe up from each to a trunk, a breaker cabinet at the end */
   for (var k = 0; k < n; k++) {
     var z = z0 + k * 0.36;
     box('galv', V(x + nx * 0.05, y, z), 0.1, 0.34, 0.24, 0);
-    rod('steelK', V(x + nx * 0.1, y + 0.03, z), V(x + nx * 0.135, y + 0.03, z), 0.1, 14, 'steelK'); rod('glassM', V(x + nx * 0.135, y + 0.03, z), V(x + nx * 0.165, y + 0.03, z), 0.088, 14, 'glassM');
-    box('steelK', V(x + nx * 0.166, y + 0.045, z), 0.003, 0.022, 0.07, 0);
+    rod('steelK', V(x + nx * 0.1, y + 0.03, z), V(x + nx * 0.14, y + 0.03, z), 0.1, 14, 'steelK');
+    if (plates) plates.push([TEX.meterF, 0.2, 0.2, V(x + nx * 0.1415, y + 0.03, z), V(nx, 0, 0)]);
     pipe('steelK', [V(x + nx * 0.05, y + 0.17, z), V(x + nx * 0.05, y + 0.62, z)], 0.017, 6);
   }
   var ze = z0 + (n - 1) * 0.36;
@@ -2132,7 +2160,10 @@ function nearZone(group, plates) {
   [1.02, 1.46].forEach(function (x) { pipe('steelG', [V(x, 0.05, 0.03), V(x, 2.68, 0.03)], 0.016, 6); });
   var panel = new T.Mesh(new T.BoxGeometry(1.3, 0.02, 0.8), new T.MeshBasicMaterial({ color: 0xfff0d6 })); panel.position.set(0, 2.68, -1.6); group.add(panel); L0.bulb = panel;
   lampHalo(group, V(0, 2.5, -0.9), 2.2, L0, 0xffe2b8);
-  box('steelK', V(-2.0, 1.3, 0.05), 0.2, 0.3, 0.08, 0); box('callB', V(-2.0, 1.34, 0.095), 0.06, 0.06, 0.012, 0);        /* the call button */
+  box('steelG', V(-2.0, 1.1, 0.022), 0.15, 0.28, 0.044, 0); box('steelK', V(-2.0, 1.1, 0.045), 0.124, 0.25, 0.004, 0);      /* the call station: a galvanized box, a dark face, one round button */
+  [[-0.05, 0.11], [0.05, 0.11], [-0.05, -0.11], [0.05, -0.11]].forEach(function (c) { box('steelG', V(-2.0 + c[0], 1.1 + c[1], 0.048), 0.012, 0.012, 0.004, 0); });
+  pipe('steelK', [V(-2.0, 1.24, 0.024), V(-2.0, 3.44, 0.024)], 0.011, 6); box('steelG', V(-2.0, 3.0, 0.024), 0.05, 0.03, 0.05, 0);      /* its wires, in a conduit up to the ledge */
+  plates.push([TEX.callL, 0.09, 0.034, V(-2.0, 1.175, 0.048), V(0, 0, 1)]);
   /* the name, sprayed across the brick over the door, two old lamps bent over it and a blue tube under it */
   plates.push([TEX.logoS, 6.0, 2.3, V(0, 4.77, 0.03), V(0, 0, 1)]);
   [-1.7, 1.7].forEach(function (x) {
@@ -2187,7 +2218,7 @@ function nearZone(group, plates) {
   box('doorG', V(ax - 0.04, 1.05, 3.4), 0.08, 2.1, 0.95, 0); box('conc', V(ax - 0.06, 2.2, 3.4), 0.14, 0.14, 1.2, 0); box('steelG', V(ax - 0.1, 1.0, 3.05), 0.03, 0.12, 0.04, 0);
 
   /* on the walls: meters and their pipes, a duct, downpipes, air units, paint */
-  meterBank(-ax, 1, 1.3, 4, 1.45);
+  meterBank(-ax, 1, 1.3, 4, 1.45, plates);
   for (i = 0; i < 9; i++) { box('galv', V(ax - 0.16, 1.5 + i * 1.2, 7.2), 0.32, 1.2, 0.4, 0); box('steelK', V(ax - 0.16, 0.9 + i * 1.2, 7.2), 0.36, 0.04, 0.44, 0); }      /* a ventilation duct up the wall */
   box('galv', V(ax - 0.29, 0.69, 7.2), 0.58, 0.42, 0.4, 0); hang('grate', ax - 0.585, 0.69, 7.2, 0.32, 0.3, -1, 0, 0);
   pipe('steelK', [V(-ax + 0.1, 14, 7.2), V(-ax + 0.1, 0.35, 7.2), V(-ax + 0.3, 0.12, 7.2)], 0.06, 8);          /* downpipes */
@@ -2265,6 +2296,8 @@ function farZone(group, plates) {
     var fl = new T.Sprite(new T.SpriteMaterial({ map: glowTex(), color: f[0], blending: T.AdditiveBlending, depthWrite: false, transparent: true, opacity: f[4] })); fl.position.set(bp.x, f[3], bp.z); fl.scale.set(f[1], f[2], 1); fl.renderOrder = 3; group.add(fl);
   });
   shadow(bp.x, bp.z, 0, 0.45); decal('poolF', V(bp.x, 0.011, bp.z), 4.4, 4.4, 0);
+  couch(ax - 0.47, 20.6, -Math.PI / 2, 4);              /* an old couch against the wall, facing the fire: somewhere to hang out */
+  if (typeof PROPS !== 'undefined' && PROPS.on) PROPS.add('boombox', { x: ax - 0.45, z: 22.6, y: 0.95, yaw: -Math.PI / 2 - 0.35 });      /* on the drum, facing the couch and the fire */
   /* more left about: drums, boxes, a pallet, tires */
   drum(ax - 0.45, 22.6, 'drumB'); drum(ax - 1.1, 23.0, 'drumK'); drum(ax - 0.5, 23.3, 'drumR');
   carton(ax - 0.5, 0, 18.3, 0.6, 0.2); carton(ax - 0.55, 0.46, 18.35, 0.5, -0.25); carton(ax - 1.15, 0, 18.6, 0.45, 0.8, true); carton(ax - 0.45, 0, 19.0, 0.4, 0.1);
@@ -2304,7 +2337,7 @@ function streetMats() {
     labelP: mat({ color: 0xb9b4a6, grime: 0.3 }), glassBr: mat({ color: 0x3a2412, gloss: 1.0, shine: 46, two: true }),
     woodS: mat({ tex: TEX.woodS, tile: 1.2, color: 0x7f848c, gloss: 0.1, two: true, grime: 0.45 }), boards: mat({ tex: TEX.woodS, color: 0x9a8a74, two: true, grime: 0.4 }), shutter: mat({ tex: TEX.shutter, tile: [0.8, 0.8], gloss: 0.3, shine: 26, two: true, grime: 0.55 }),
     winDark: mat({ tex: TEX.winDark, gloss: 0.9, shine: 60, two: true }), winLit: mat({ tex: TEX.winLit, glow: 0.5, two: true }), winLit2: mat({ tex: TEX.winLit2, glow: 0.42, two: true }),
-    dark: mat({ color: 0x050607, two: true }), doorG: mat({ tex: TEX.paintG, tile: 0.8, color: 0xa8b0a8, gloss: 0.25, grime: 0.55 }), hazardS: mat({ tex: TEX.hazardS, tile: 0.5, color: 0xbfbfbf, grime: 0.5 }), callB: mat({ color: 0x38c060, glow: 0.8 }),
+    dark: mat({ color: 0x050607, two: true }), doorG: mat({ tex: TEX.paintG, tile: 0.8, color: 0xa8b0a8, gloss: 0.25, grime: 0.55 }), hazardS: mat({ tex: TEX.hazardS, tile: 0.5, color: 0xbfbfbf, grime: 0.5 }), callB: mat({ color: 0x38c060, glow: 0.8 }), couchF: mat({ tex: TEX.couchF, tile: 0.5, gloss: 0.06, shine: 8, grime: 0.6 }),
     grate: mat({ tex: TEX.grate, tile: 0.2, two: true, gloss: 0.3 }), fenceS: mat({ tex: TEX.fence, tile: 0.56, two: true, cut: true }), rubberS: mat({ color: 0x141416, gloss: 0.15 }),
     bagK: mat({ tex: TEX.bagT, gloss: 0.1, shine: 7, two: true }), bagW: mat({ tex: TEX.bagT, color: 0xb9bdc6, gloss: 0.1, shine: 7, two: true }), card: mat({ tex: TEX.card, tile: 0.8, color: 0xa4a9b3, two: true, grime: 0.4 }), tape: mat({ color: 0x7c6f52 }),
     wire: mat({ color: 0x0c0c0e, two: true }), bulbE: mat({ color: 0xffd9a0, glow: 3.0, two: true }), glassM: mat({ color: 0x2a3440, gloss: 0.9, shine: 60, two: true }),
@@ -2339,6 +2372,7 @@ function buildStreet(world, step) {
   zone('alley, far half', FAR_LIGHTS, farZone);
   zone('street, near end', S1_LIGHTS, townNear);
   zone('street, far end', S2_LIGHTS, townFar);
+  if (typeof buildRoofs === 'function') zone('roofs', ROOF_LIGHTS, buildRoofs);      /* on the headset page: every roof, and the city past them */
   step('skyline', function () {                           /* the city over the rooftops, at both ends */
     var m = new T.MeshBasicMaterial({ map: TEX.far, transparent: true, alphaTest: 0.5, side: T.DoubleSide, fog: false });
     [[V(10, 26, 78), V(0, 0, -1), 190, 44], [V(10, 26, -44), V(0, 0, 1), 190, 44], [V(84, 26, 20), V(-1, 0, 0), 150, 44], [V(-52, 26, 20), V(1, 0, 0), 150, 44]].forEach(function (s) {
@@ -2613,10 +2647,11 @@ function townFar(group, plates) {
   [-0.45, 0.45].forEach(function (d) { pipe('steelK', [V(40, 3.75, 29 + d), V(39.26, 3.55, 29 + d * 0.7)], 0.025, 6); pipe('steelK', [V(40, 3.0, 29 + d), V(39.26, 3.3, 29 + d * 0.7)], 0.025, 6); });
   box('boardW', V(39.22, 3.5, 29), 0.04, 1.05, 1.8, 0); box('rimO', V(39.195, 3.28, 29), 0.006, 0.45, 0.6, 0); box('boardW', V(39.19, 3.28, 29), 0.008, 0.37, 0.52, 0);
   var ring = []; for (i = 0; i <= 16; i++) ring.push(V(38.77 + Math.cos(i / 16 * 6.2832) * 0.23, 3.05, 29 + Math.sin(i / 16 * 6.2832) * 0.23));
-  pipe('rimO', ring, 0.012, 6); box('rimO', V(39.1, 3.04, 29), 0.2, 0.02, 0.1, 0); turned('fenceS', V(38.77, 2.62, 29), [[0.13, 0], [0.225, 0.43]], 14, 0);
+  pipe('rimO', ring, 0.012, 6); box('rimO', V(39.1, 3.04, 29), 0.2, 0.02, 0.1, 0); turned('netS', V(38.77, 2.62, 29), [[0.13, 0], [0.225, 0.43]], 14, 0);
   wallLamp(group, L[7], -1, 0); lightCone(group, V(SAT.hoop.x - 0.1, SAT.hoop.y, SAT.hoop.z), 2.6, 5.2, 0xdcebff, 0.16);
   groundPaint(group, TEX.court, 5.8, 4.9, 37.1, 29);
-  turned('ballO', V(36.9, 0, 27.6), [[0.0, 0], [0.085, 0.035], [0.12, 0.12], [0.085, 0.205], [0.0, 0.24]], 14, 0); shadow(36.9, 27.6, 0, 0.16);
+  if (typeof PROPS !== 'undefined' && PROPS.on) PROPS.add('ball', { x: 36.9, z: 27.6, y: 0 });
+  else { turned('ballO', V(36.9, 0, 27.6), [[0.0, 0], [0.085, 0.035], [0.12, 0.12], [0.085, 0.205], [0.0, 0.24]], 14, 0); shadow(36.9, 27.6, 0, 0.16); }
   plates.push([TEX.tagCrown, 1.6, 1.3, V(39.97, 2.0, 32.4), V(-1, 0, 0)]); plates.push([TEX.hands[0], 1.7, 2.5, V(39.97, 1.6, 26.2), V(-1, 0, 0)]);
   /* the practice yard: a fenced lot between two buildings */
   wallQ('brickR', 22, 14, 22, 24, 0, 14, 1, 0); trim('conc', 22, 14, 22, 24, 14.12, 0.3, 0.4, 1, 0); windowsOn(22, 15, 22, 23, 1, 0, [5.0, 8.0, 11.0], 3, 561, 0.3, 0.1);
@@ -2691,7 +2726,7 @@ var alleyMats = streetMats;
 streetMats = function () {
   function mat(o) { o.snap = false; return roomMat(o); }
   var m = alleyMats();
-  m.fenceS = mat({ tex: TEX.linkS, tile: 0.11, two: true, blend: true, gloss: 0.2 });
+  m.fenceS = mat({ tex: TEX.linkS, tile: 0.11, two: true, blend: true, gloss: 0.2 }); m.netS = mat({ tex: TEX.linkS, tile: 0.08, two: true, blend: true, color: 0xd9d5ca });
   m.tarpB = mat({ tex: TEX.tarpT, color: 0x33435c, two: true, grime: 0.3 }); m.tarpR = mat({ tex: TEX.tarpT, color: 0x5e302a, two: true, grime: 0.3 }); m.tarpG = mat({ tex: TEX.tarpT, color: 0x3a4a3e, two: true, grime: 0.3 });
   m.bagL1 = mat({ tex: TEX.leatherT, color: 0x7a3a33, gloss: 0.25, shine: 14, two: true }); m.bagL2 = mat({ tex: TEX.leatherT, color: 0x3a3d43, gloss: 0.25, shine: 14, two: true }); m.bagL3 = mat({ tex: TEX.leatherT, color: 0x8f8676, gloss: 0.1, two: true });
   m.awnS = mat({ tex: TEX.awn, color: 0x33435c, two: true, grime: 0.4 }); m.shopW = mat({ color: 0x6f6a5f, two: true }); m.shopF = mat({ tex: TEX.woodS, tile: 1.2, color: 0x9a8f80 });
@@ -2699,6 +2734,239 @@ streetMats = function () {
   m.boardW = mat({ color: 0xb9b6ad, gloss: 0.2, grime: 0.5 }); m.rimO = mat({ color: 0xa8481c, two: true }); m.ballO = mat({ color: 0x8a4a22, grime: 0.3 });
   m.hydR = mat({ color: 0x7c2a22, gloss: 0.3, grime: 0.5 }); m.tar = mat({ color: 0x0c0c0e, gloss: 0.9, shine: 40 }); m.matK = mat({ color: 0x16171a, gloss: 0.15 });
   m.roofT = mat({ tex: TEX.roofT, tile: 2.4, gloss: 0.3, grime: 0.4 }); m.banana = mat({ color: 0xc19a22, gloss: 0.2, shine: 16 }); m.cushK = mat({ tex: TEX.tarpT, tile: 0.9, color: 0x3a4152, grime: 0.3 });
+  return m;
+};
+/* ================================================================== */
+/* The rooftops. Every building round the alley and the street gets a */
+/* roof you can stand on, a low wall round its edge, the walls where a */
+/* taller building rises over a lower one, and the clutter roofs       */
+/* collect: air units, vents, stair huts, water tanks. Two fixed       */
+/* ladders show ways up. Past the edge, more buildings, out of reach,  */
+/* so the city carries on.                                             */
+/* ================================================================== */
+var ROOF = {
+  bound: [-14, 48, -6, 42],                               /* x0, x1, z0, z1: the edge of everywhere you can get to */
+  blocks: [                                               /* each building: its footprint (rectangles x0, x1, z0, z1), how tall, its brick */
+    { n: 'end', r: [[-3.5, 3.5, -6, 0]], h: 13, b: 'brickD' },
+    { n: 'L1', r: [[-14, -3.5, -6, 7.5]], h: 14, b: 'brickR' },
+    { n: 'dock', r: [[-14, -5.3, 7.5, 15]], h: 10, b: 'brickD' },
+    { n: 'L2', r: [[-14, -3.5, 15, 24]], h: 16, b: 'brickP' },
+    { n: 'dead', r: [[-14, -8, 24, 34]], h: 13, b: 'brickD' },
+    { n: 'shop', r: [[-14, 6, 34, 42]], h: 13, b: 'brickD' },
+    { n: 'far2', r: [[6, 18, 34, 42]], h: 15, b: 'brickR' },
+    { n: 'far3', r: [[18, 30, 34, 42]], h: 12, b: 'brickP' },
+    { n: 'far4', r: [[30, 40, 34, 42]], h: 14, b: 'brickY' },
+    { n: 'endE', r: [[40, 48, -6, 42]], h: 9, b: 'brickD' },
+    { n: 'R1', r: [[3.5, 14, -6, 8]], h: 15, b: 'brickD' },
+    { n: 'R2', r: [[3.9, 14, 8, 17]], h: 9.5, b: 'brickR' },
+    { n: 'R3', r: [[3.5, 12, 17, 24], [12, 14, 17, 20]], h: 12.5, b: 'brickY' },
+    { n: 'S1', r: [[14, 22, 14, 24], [12, 14, 20, 24]], h: 14, b: 'brickR' },
+    { n: 'mid', r: [[14, 22, -6, 14]], h: 11, b: 'brickD' },
+    { n: 'yardB', r: [[22, 40, -6, 14]], h: 10, b: 'brickD' },
+    { n: 'low', r: [[32, 40, 14, 24]], h: 6, b: 'brickD', built: true }      /* the low roof by the yard already has its own */
+  ],
+  skip: [['z', 7.5, -14, -3.5], ['z', 15, -14, -3.5], ['z', 8, 3.5, 14], ['z', 17, 3.5, 14], ['x', 40, 14, 34]],      /* walls between roofs the street already built */
+  huts: [[-9, -1.2, 0, 'L1'], [-6.2, 18.5, Math.PI / 2, 'L2'], [-10, 38.5, 0, 'shop'], [35, 38.6, Math.PI, 'far4'], [10, 0.5, 0, 'R1'], [19, 20.5, -Math.PI / 2, 'S1'], [18, -3.2, 0, 'mid'], [37.6, 8, Math.PI, 'yardB']],
+  grid: null
+};
+var ROOF_LIGHTS = (function () {                          /* up here: more open sky, a lamp over each stair hut's door, one over the chairs */
+  var s = lightSet([0.13, 0.15, 0.22], [0.072, 0.07, 0.078]);
+  s.uni.uFogC = { value: new T.Color(0.03, 0.038, 0.058) }; s.uni.uFogD = { value: 0.026 }; s.uni.uWrap.value = 0.12;
+  useLights(s);
+  ROOF.huts.forEach(function (u) { var h = roofBlock(u[3]).h; addLight(V(u[0] + Math.sin(u[2]) * 1.05, h + 2.15, u[1] + Math.cos(u[2]) * 1.05), [1.0, 0.84, 0.62], 1.3, 0, 0, 4.2, 'none'); });
+  addLight(V(8.3, 9.5 + 2.3, 12.8), [1.0, 0.8, 0.55], 1.2, 0, 0, 4.5, 'none');
+  fillLights(); useLights(ARENA_LIGHTS);
+  return s;
+})();
+function roofBlock(n) { return ROOF.blocks.filter(function (b) { return b.n === n; })[0]; }
+
+/* ---------------- where everything is: a grid cut along every building's edges ---------------- */
+function roofGrid() {
+  var xs = [ROOF.bound[0], ROOF.bound[1]], zs = [ROOF.bound[2], ROOF.bound[3]];
+  ROOF.blocks.forEach(function (b, k) { b.k = k; b.r.forEach(function (r) { xs.push(r[0], r[1]); zs.push(r[2], r[3]); }); });
+  function uniq(a) { a = a.map(function (v) { return Math.round(v * 100) / 100; }).sort(function (p, q) { return p - q; }); return a.filter(function (v, i) { return i === 0 || v !== a[i - 1]; }); }
+  xs = uniq(xs); zs = uniq(zs);
+  var nx = xs.length - 1, nz = zs.length - 1, cell = new Int16Array(nx * nz).fill(-1), i, j;
+  for (j = 0; j < nz; j++) for (i = 0; i < nx; i++) {
+    var cx = (xs[i] + xs[i + 1]) / 2, cz = (zs[j] + zs[j + 1]) / 2;
+    ROOF.blocks.forEach(function (b) { b.r.forEach(function (r) { if (cx > r[0] && cx < r[1] && cz > r[2] && cz < r[3]) cell[i + j * nx] = b.k; }); });
+  }
+  ROOF.grid = { xs: xs, zs: zs, nx: nx, nz: nz, cell: cell };
+}
+function roofCell(i, j) { var G = ROOF.grid; return i < 0 || j < 0 || i >= G.nx || j >= G.nz ? -2 : G.cell[i + j * G.nx]; }      /* a building's number; -1 open ground; -2 past the edge */
+function roofAt(x, z) {                                   /* the roof's height over (x, z): -1 on open ground (or right by a wall), null past the edge of everything */
+  var B = ROOF.bound;
+  if (x < B[0] - 0.5 || x > B[1] + 0.5 || z < B[2] - 0.5 || z > B[3] + 0.5) return null;
+  for (var k = 0; k < ROOF.blocks.length; k++) { var b = ROOF.blocks[k]; for (var m = 0; m < b.r.length; m++) { var r = b.r[m]; if (x > r[0] + 0.3 && x < r[1] - 0.3 && z > r[2] + 0.3 && z < r[3] - 0.3) return b.h; } }
+  return -1;
+}
+function roofEdges() {                                     /* every edge of every roof: what is on the other side of it */
+  var G = ROOF.grid, segs = [], i, j;
+  function add(axis, c, a0, a1, n, b, other) {
+    var B = ROOF.blocks[b], type, y0 = 0;
+    if (other >= 0) { if (other === b || ROOF.blocks[other].h >= B.h) return; type = 'step'; y0 = ROOF.blocks[other].h; }
+    else type = other === -1 ? 'face' : 'edge';
+    segs.push({ axis: axis, c: c, a0: a0, a1: a1, n: n, b: b, type: type, y0: y0, h: B.h });
+  }
+  for (j = 0; j < G.nz; j++) for (i = 0; i < G.nx; i++) {
+    var b = G.cell[i + j * G.nx]; if (b < 0) continue;
+    add('x', G.xs[i + 1], G.zs[j], G.zs[j + 1], 1, b, roofCell(i + 1, j)); add('x', G.xs[i], G.zs[j], G.zs[j + 1], -1, b, roofCell(i - 1, j));
+    add('z', G.zs[j + 1], G.xs[i], G.xs[i + 1], 1, b, roofCell(i, j + 1)); add('z', G.zs[j], G.xs[i], G.xs[i + 1], -1, b, roofCell(i, j - 1));
+  }
+  segs.sort(function (p, q) { return (p.axis < q.axis ? -1 : p.axis > q.axis ? 1 : 0) || p.c - q.c || p.n - q.n || p.a0 - q.a0; });
+  var out = [];
+  segs.forEach(function (s) { var l = out[out.length - 1]; if (l && l.axis === s.axis && l.c === s.c && l.n === s.n && l.b === s.b && l.type === s.type && l.y0 === s.y0 && Math.abs(l.a1 - s.a0) < 1e-6) l.a1 = s.a1; else out.push(s); });
+  return out;
+}
+function roofSkip(s) { return ROOF.skip.some(function (e) { return e[0] === s.axis && Math.abs(e[1] - s.c) < 1e-6 && s.a0 >= e[2] - 1e-6 && s.a1 <= e[3] + 1e-6; }); }
+
+/* ---------------- what roofs have on them ---------------- */
+function roofLedge(x0, z0, x1, z1, y, key) {              /* a low wall along a roof's edge, with a coping; a little long, so corners close */
+  var len = Math.hypot(x1 - x0, z1 - z0) + 0.24, ry = Math.atan2(-(z1 - z0), x1 - x0), c = V((x0 + x1) / 2, y + 0.3, (z0 + z1) / 2);
+  box(key, c, len, 0.6, 0.24, ry); box('conc', V(c.x, y + 0.63, c.z), len + 0.04, 0.06, 0.3, ry);
+}
+function acUnit(x, y, z, ry) {                             /* a rooftop air unit on its curb, a duct down into the roof */
+  var M = xf(x, y, z, 0, ry, 0);
+  obox('steelK', M, 0, 0.05, 0, 1.36, 0.1, 1.04); obox('galv', M, 0, 0.53, 0, 1.24, 0.86, 0.92); obox('grate', M, 0, 0.97, 0, 1.0, 0.03, 0.72);
+  obox('dark', M, 0, 0.955, 0, 0.7, 0.01, 0.6); obox('galv', M, 0.75, 0.3, 0.1, 0.3, 0.3, 0.4);
+}
+function vent(x, y, z, h, r) { pipe('steelK', [V(x, y, z), V(x, y + h, z)], r, 8); lathe('steelK', V(x, y + h + 0.05, z), [[r * 2.0, 0], [r * 2.0, 0.04], [0.0, 0.17]], 8); }
+function stairHut(x, y, z, ry, key) {                      /* the hut over the stairs, its steel door, a lamp over the door */
+  var M = xf(x, y, z, 0, ry, 0);
+  obox(key, M, 0, 1.2, 0, 2.0, 2.4, 1.8); obox('conc', M, 0, 2.45, 0, 2.24, 0.1, 2.04);
+  obox('doorG', M, 0, 1.06, 0.91, 0.92, 2.06, 0.04); obox('steelK', M, 0.33, 1.05, 0.94, 0.05, 0.04, 0.04);
+  obox('steelK', M, 0, 2.1, 0.97, 0.2, 0.1, 0.14);
+}
+function waterTank(x, y, z) {                              /* a wooden tank on a steel stand, the old way */
+  [[-0.9, -0.9], [0.9, -0.9], [-0.9, 0.9], [0.9, 0.9]].forEach(function (p) { pipe('steelK', [V(x + p[0], y, z + p[1]), V(x + p[0], y + 1.3, z + p[1])], 0.06, 6); });
+  box('steelK', V(x, y + 1.32, z), 2.2, 0.08, 2.2, 0);
+  lathe('woodS', V(x, y + 1.36, z), [[0.0, 0], [1.25, 0], [1.3, 0.05], [1.3, 2.3], [1.42, 2.36], [0.0, 3.1]], 16);
+}
+function chimney(x, y, z, key) { box(key, V(x, y + 0.8, z), 0.7, 1.6, 0.7, 0); box('conc', V(x, y + 1.63, z), 0.82, 0.06, 0.82, 0); }
+function antenna(x, y, z) {
+  pipe('steelK', [V(x, y, z), V(x, y + 3.2, z)], 0.03, 6); box('steelK', V(x, y + 0.04, z), 0.4, 0.08, 0.4, 0);
+  [2.2, 2.6, 3.0].forEach(function (h, k) { var w = 0.6 - k * 0.15; pipe('steelK', [V(x - w, y + h, z), V(x + w, y + h, z)], 0.012, 4); });
+}
+function skylight(x, y, z, ry) { var M = xf(x, y, z, 0, ry, 0); obox('conc', M, 0, 0.2, 0, 1.6, 0.4, 1.2); obox('glassM', M, 0, 0.42, 0, 1.5, 0.04, 1.1); }
+function lawnChair(x, y, z, ry) {                          /* a folding chair: a light frame, a sagging cloth seat and back */
+  var M = xf(x, y, z, 0, ry, 0), w = 0.27;
+  obox('cushK', M, 0, 0.37, 0.02, 0.52, 0.04, 0.46); obox('cushK', M.clone().multiply(xf(0, 0.39, -0.22, -0.3, 0, 0)), 0, 0.28, 0, 0.52, 0.56, 0.04);
+  function pt(lx, ly, lz) { return V(lx, ly, lz).applyMatrix4(M); }
+  [-1, 1].forEach(function (s) {
+    pipe('steelG', [pt(s * w, 0, 0.26), pt(s * w, 0.37, -0.2), pt(s * w, 0.9, -0.38)], 0.012, 5);      /* back leg and upright */
+    pipe('steelG', [pt(s * w, 0, -0.24), pt(s * w, 0.37, 0.24)], 0.012, 5);                             /* front leg */
+    pipe('steelG', [pt(s * w, 0.58, -0.25), pt(s * w, 0.58, 0.22), pt(s * w, 0.37, 0.24)], 0.014, 5);      /* the arm */
+  });
+}
+function cooler(x, y, z, ry) { var M = xf(x, y, z, 0, ry, 0); obox('doorG', M, 0, 0.2, 0, 0.62, 0.4, 0.4); obox('conc', M, 0, 0.42, 0, 0.64, 0.05, 0.42); obox('steelK', M, 0, 0.47, 0, 0.3, 0.03, 0.04); }
+function wallLadder(x, z, nx, nz, y0, y1) {                /* a fixed steel ladder on a wall facing (nx, nz), from y0 up and over the ledge at y1 */
+  var tx = -nz, tz = nx, off = 0.2, w = 0.23, y;
+  [-1, 1].forEach(function (s) {
+    var bx = x + tx * w * s, bz = z + tz * w * s;
+    pipe('steelK', [V(bx + nx * off, y0, bz + nz * off), V(bx + nx * off, y1 + 0.35, bz + nz * off), V(bx - nx * 0.1, y1 + 1.0, bz - nz * 0.1), V(bx - nx * 0.5, y1 + 0.85, bz - nz * 0.5), V(bx - nx * 0.5, y1 + 0.66, bz - nz * 0.5)], 0.022, 6);
+    for (y = y0 + 0.6; y < y1; y += 1.5) pipe('steelK', [V(bx + nx * 0.01, y, bz + nz * 0.01), V(bx + nx * off, y, bz + nz * off)], 0.015, 5);
+  });
+  for (y = y0 + 0.28; y < y1 + 0.25; y += 0.3) pipe('steelK', [V(x - tx * w + nx * off, y, z - tz * w + nz * off), V(x + tx * w + nx * off, y, z + tz * w + nz * off)], 0.014, 5);
+}
+
+function stepWindows(x0, z0, x1, z1, nx, nz, y0, y1, seed) {      /* rows of windows on the part of a wall that rises over a lower roof */
+  var floors = [], y, len = Math.hypot(x1 - x0, z1 - z0), dx = (x1 - x0) / (len || 1), dz = (z1 - z0) / (len || 1);
+  for (y = y0 + 1.1; y + 1.9 < y1; y += 3.0) floors.push(y);
+  if (!floors.length || len < 2.6) return;
+  windowsOn(x0 + dx * 0.6, z0 + dz * 0.6, x1 - dx * 0.6, z1 - dz * 0.6, nx, nz, floors, Math.max(1, Math.floor((len - 1.2) / 2.9)), seed, 0.32, 0.12);
+}
+/* ---------------- building it ---------------- */
+function buildRoofs(group, plates) {
+  if (!ROOF.grid) roofGrid();
+  var L = ROOF_LIGHTS.lamps, i;
+  ROOF.blocks.forEach(function (b) { if (b.built) return; b.r.forEach(function (r) { quad('roofT', V(r[0], b.h, r[2]), V(r[1], b.h, r[2]), V(r[1], b.h, r[3]), V(r[0], b.h, r[3]), V((r[0] + r[1]) / 2, 0, (r[2] + r[3]) / 2)); }); });
+  roofEdges().forEach(function (s) {
+    var B = ROOF.blocks[s.b], x0, z0, x1, z1, nx = 0, nz = 0;
+    if (s.axis === 'x') { x0 = x1 = s.c; z0 = s.a0; z1 = s.a1; nx = s.n; } else { z0 = z1 = s.c; x0 = s.a0; x1 = s.a1; nz = s.n; }
+    if (s.type === 'step' && !roofSkip(s)) wallQ(B.b, x0, z0, x1, z1, s.y0, s.h, nx, nz);         /* where this building rises over its neighbour */
+    if (s.type === 'step') stepWindows(x0, z0, x1, z1, nx, nz, s.y0, s.h, 940 + Math.round(s.c * 7 + s.a0 * 3));      /* with windows, some lit, so it reads as a building and not a blank */
+    if (B.built) return;
+    roofLedge(x0, z0, x1, z1, s.h, B.b);
+    if (s.type === 'edge') wallQ('barrier', x0, z0, x1, z1, s.h + 0.66, s.h + 4.5, -nx, -nz);       /* past here is out of the game: a wall nobody sees */
+  });
+  /* the stair huts, each with its lamp */
+  ROOF.huts.forEach(function (u, k) {
+    var B = roofBlock(u[3]); stairHut(u[0], B.h, u[1], u[2], B.b);
+    var p = V(u[0] + Math.sin(u[2]) * 1.0, B.h + 2.15, u[1] + Math.cos(u[2]) * 1.0);
+    lampBulb(group, p, 0.05, L[k], 0xffe2b0); lampHalo(group, p, 1.2, L[k], 0xffc27a);
+  });
+  /* the clutter, roof by roof */
+  var h = function (n) { return roofBlock(n).h; };
+  vent(-2.4, h('end'), -4.4, 0.9, 0.08); acUnit(1.6, h('end'), -3.6, 0.3);
+  acUnit(-6.2, h('L1'), 4.2, 0); vent(-12, h('L1'), 5, 1.1, 0.1); vent(-5.2, h('L1'), -4.2, 0.8, 0.07); chimney(-12.5, h('L1'), -4, 'brickR');
+  acUnit(-12, h('dock'), 9.2, 1.57); vent(-6.6, h('dock'), 14, 0.9, 0.08);
+  waterTank(-10.5, h('L2'), 20.5); antenna(-12.8, h('L2'), 16.4); vent(-4.6, h('L2'), 22.6, 0.7, 0.06);
+  chimney(-12, h('dead'), 26.5, 'brickD'); chimney(-12, h('dead'), 31, 'brickD'); acUnit(-9.6, h('dead'), 29, 1.57);
+  skylight(-4, h('shop'), 38, 0); skylight(0, h('shop'), 38, 0); acUnit(3.6, h('shop'), 40, 0); vent(-13, h('shop'), 41, 1.0, 0.09);
+  waterTank(12, h('far2'), 38.6); acUnit(8, h('far2'), 36.4, 0); antenna(16.8, h('far2'), 40.8);
+  chimney(20, h('far3'), 40.6, 'brickP'); acUnit(25, h('far3'), 37.2, 0.2); vent(28.4, h('far3'), 40.4, 0.9, 0.08);
+  acUnit(32.2, h('far4'), 40.4, 0); antenna(38.6, h('far4'), 35.6);
+  acUnit(44, h('endE'), 10, 1.57); acUnit(44.2, h('endE'), 30, 1.57); vent(45.5, h('endE'), 20, 1.0, 0.09); vent(43, h('endE'), 38, 0.8, 0.07); chimney(46, h('endE'), 0, 'brickD');
+  acUnit(6.2, h('R1'), 5.2, 0); antenna(12.6, h('R1'), -4.2); vent(5, h('R1'), -4.6, 0.9, 0.08);
+  acUnit(12.4, h('R2'), 9.6, 1.57); vent(12.6, h('R2'), 16, 0.8, 0.07);
+  chimney(6, h('R3'), 22.6, 'brickY'); acUnit(9.4, h('R3'), 19.2, 0); vent(11, h('R3'), 23, 0.9, 0.08);
+  acUnit(16.2, h('S1'), 16.6, 0); skylight(16.2, h('S1'), 22, 1.57);
+  acUnit(17, h('mid'), 0.5, 0); acUnit(19.6, h('mid'), 6.4, 1.57); vent(15.4, h('mid'), 10.4, 1.0, 0.09);
+  skylight(27, h('yardB'), 6, 0); skylight(31, h('yardB'), 6, 0); acUnit(35, h('yardB'), 2, 0); vent(25, h('yardB'), 11.6, 1.1, 0.1);
+  /* chairs on the low red roof over the fire escape, looking down the alley, under a bare bulb on a pole */
+  var y2 = h('R2'); lawnChair(7.2, y2, 12.6, -Math.PI / 2 + 0.25); lawnChair(7.3, y2, 13.9, -Math.PI / 2 - 0.15); crate(V(7.0, y2, 11.4), 0.45, 0.4); cooler(8.5, y2, 14.6, 0.3);
+  pipe('steelK', [V(8.3, y2, 12.8), V(8.3, y2 + 2.4, 12.8), V(8.0, y2 + 2.4, 12.8)], 0.025, 6); var bp = V(8.0, y2 + 2.3, 12.8);
+  lampBulb(group, bp, 0.05, L[ROOF.huts.length], 0xffd9a0); lampHalo(group, bp, 1.4, L[ROOF.huts.length], 0xffb870);
+  if (typeof PROPS !== 'undefined' && PROPS.on) { PROPS.add('can', { x: 7.05, z: 11.4, y: y2 + 0.45 }); PROPS.add('bottle', { x: 6.9, z: 11.3, y: y2 + 0.45 }); PROPS.add('can', { x: 7.8, z: 13.2, y: y2, lie: 0.7 }); }
+  /* two ways up that are plain to see: a ladder on the dead end's wall, one in the yard */
+  wallLadder(-8, 31.6, 1, 0, 0.3, h('dead')); wallLadder(25.6, 14, 0, 1, 0.3, h("yardB"));
+  roofFiller();
+}
+/* past the edge: buildings you only see. Plain walls with windows painted on, a roof, a ledge; water tanks on two of them */
+var FILLER = [
+  [-30, -14, -22, 2, 18], [-30, -14, 2, 14, 12], [-30, -14, 14, 28, 20], [-30, -14, 28, 42, 11], [-30, -14, 42, 58, 16],
+  [-14, 0, -22, -6, 15], [0, 10, -22, -6, 22], [10, 24, -22, -6, 12], [24, 38, -22, -6, 17], [38, 48, -22, -6, 10], [48, 64, -22, -6, 19],
+  [48, 64, -6, 10, 13], [48, 64, 10, 22, 8], [48, 64, 22, 36, 15], [48, 64, 36, 58, 11],
+  [-14, 2, 42, 58, 12], [2, 16, 42, 58, 19], [16, 28, 42, 58, 10], [28, 40, 42, 58, 16], [40, 48, 42, 58, 13]
+];
+function roofFiller() {
+  FILLER.forEach(function (f) {
+    var x0 = f[0], x1 = f[1], z0 = f[2], z1 = f[3], hh = f[4], c = V((x0 + x1) / 2, hh / 2, (z0 + z1) / 2);
+    wallQ('fillW', x0, z0, x1, z0, 0, hh, 0, -1); wallQ('fillW', x1, z0, x1, z1, 0, hh, 1, 0); wallQ('fillW', x0, z1, x1, z1, 0, hh, 0, 1); wallQ('fillW', x0, z0, x0, z1, 0, hh, -1, 0);
+    quad('roofF', V(x0, hh, z0), V(x1, hh, z0), V(x1, hh, z1), V(x0, hh, z1), V(c.x, 0, c.z));
+    box('copF', V(c.x, hh + 0.3, z0), x1 - x0, 0.6, 0.24, 0); box('copF', V(c.x, hh + 0.3, z1), x1 - x0, 0.6, 0.24, 0);
+    box('copF', V(x0, hh + 0.3, c.z), 0.24, 0.6, z1 - z0, 0); box('copF', V(x1, hh + 0.3, c.z), 0.24, 0.6, z1 - z0, 0);
+  });
+  [[-22, 20, 20], [5, -14, 22], [56, 30, 15]].forEach(function (t) {
+    [[-0.9, -0.9], [0.9, -0.9], [-0.9, 0.9], [0.9, 0.9]].forEach(function (p) { pipe('copF', [V(t[0] + p[0], t[2], t[1] + p[1]), V(t[0] + p[0], t[2] + 1.3, t[1] + p[1])], 0.06, 5); });
+    lathe('tankF', V(t[0], t[2] + 1.32, t[1]), [[0.0, 0], [1.25, 0], [1.3, 0.05], [1.3, 2.3], [1.42, 2.36], [0.0, 3.1]], 12);
+  });
+}
+/* the roofs' own materials, joined to the street's */
+function fillerTex() {
+  var w = 256, h = 256, c = document.createElement('canvas'); c.width = w; c.height = h;
+  var g = c.getContext('2d'), q = rand(931), r, k;
+  g.fillStyle = '#2b2321'; g.fillRect(0, 0, w, h);
+  for (k = 0; k < 160; k++) { g.globalAlpha = 0.04 + q() * 0.06; g.fillStyle = q() < 0.5 ? '#000' : '#fff'; g.fillRect(q() * w, q() * h, 4 + q() * 30, 2 + q() * 10); }
+  g.globalAlpha = 1;
+  for (r = 0; r < 4; r++) for (k = 0; k < 4; k++) {        /* four floors of four windows; a few lit */
+    var x = k * 64 + 18, y = r * 64 + 12, lit = q() < 0.24;
+    g.fillStyle = '#4a4540'; g.fillRect(x - 3, y + 40, 34, 4);
+    g.fillStyle = lit ? (q() < 0.5 ? '#e9b871' : '#d9c49c') : (q() < 0.5 ? '#0c111b' : '#151b27'); g.fillRect(x, y, 28, 40);
+    g.fillStyle = 'rgba(0,0,0,0.55)'; g.fillRect(x + 13, y, 2, 40); g.fillRect(x, y + 19, 28, 2);
+  }
+  var t = smoothTex(new T.CanvasTexture(c)); t.wrapS = t.wrapT = T.RepeatWrapping; t.userData = { w: w, h: h };
+  return t;
+}
+var townMats_ = streetMats;
+streetMats = function () {
+  function mat(o) { o.snap = false; return roomMat(o); }
+  var m = townMats_();
+  if (!TEX.fillW) TEX.fillW = fillerTex();
+  var hide = new T.MeshBasicMaterial(); hide.visible = false;
+  m.barrier = hide;
+  m.fillW = mat({ tex: TEX.fillW, tile: [12, 12], glow: 0.55, grime: 0.3 });
+  m.roofF = mat({ tex: TEX.roofT, tile: 2.4, gloss: 0.2, grime: 0.4 }); m.copF = mat({ color: 0x55524c, grime: 0.5 }); m.tankF = mat({ tex: TEX.woodS, tile: 1.2, color: 0x6a6f76, grime: 0.45 });
   return m;
 };
 /* ---------------- this page: the street, the main lobby. For now, its alley ---------------- */
@@ -2735,36 +3003,37 @@ var SCENE = {
 /* rules follow Gorilla Tag's open-source GorillaLocomotion (MIT,      */
 /* Another Axiom); this is a fresh JavaScript version for this page.   */
 /* ================================================================== */
-/* k: how many times bigger than you your gorilla is (your arms reach k times as far). E: how high its eyes sit off the ground, resting on its body. */
-/* E / k is the same for all three, about 0.8 m, so the ground always meets your hands near your thighs, the way it does in Gorilla Tag.     */
-var SIZES = [{ name: 'Gorilla Tag size', k: 1.0, E: 0.8 }, { name: 'Big', k: 1.3, E: 1.05 }, { name: 'Silverback size', k: 1.6, E: 1.3 }];
+/* k: how many times bigger than you your gorilla is: the street looks 1/k its size to you. E: how high its eyes sit off the ground, resting on its body.  */
+/* Every player gets the same body (fair fights); what changes per player is how far the arms reach: they are lengthened from the chest just enough   */
+/* that the ground meets your real hands at about your waist, so nobody has to bend down to move. The left stick tunes that, and it is remembered.    */
+var BODY = { k: 1.3, E: 0.95, pivot: 0.22 };
 var G = 9.8;
 var XRG = {
   on: false, session: null, ref: null, cam: null, rig: null, me: null, world: null, button: null,
-  size: 1, k: 1.3, E: 1.05, D: null, EYE0: 1.347, EYEM: V(0, 1.347, 0.342),
+  k: BODY.k, E: BODY.E, D: null, EYE0: 1.347, EYEM: V(0, 1.347, 0.342), arm: 1.3, eyeH: 1.55, eyeMeasured: false, calibUntil: 0, groundAdj: 0, floorKnown: false,
   pos: V(0, 0, 0), yaw: 0, vel: V(0, 0, 0), ground: false, time: 0,
   headLocal: V(0, 1.6, 0), headQ: new T.Quaternion(), poseSeen: false, aligned: false, failed: false,
-  hands: ['left', 'right'].map(function (side) { return { side: side, arm: side === 'left' ? 1 : -1, local: V(0, 0, 0), q: new T.Quaternion(), cur: V(0, 0, 0), last: V(0, 0, 0), prev: V(0, 0, 0), was: false, coll: false, kind: 0, src: null, tracked: false, tapAt: 0 }; }),
+  hands: ['left', 'right'].map(function (side) { return { side: side, arm: side === 'left' ? 1 : -1, local: V(0, 0, 0), q: new T.Quaternion(), wq: new T.Quaternion(), cur: V(0, 0, 0), last: V(0, 0, 0), prev: V(0, 0, 0), was: false, coll: false, kind: 0, src: null, tracked: false, tapAt: 0, held: null, fistWas: false, testB: null }; }),
   hist: [], histI: 0, spheres: [], col: null, spawn: { pos: V(0.3, 0, 2.6), yaw: 0 },
-  held: { turn: false, size: false, home: false }, toast: null, toastT: 0
+  held: { turn: false, ground: false, home: false }, toast: null, toastT: 0
 };
 var HW = V(0, 0, 0), BW = V(0, 0, 0), TMP = V(0, 0, 0), MOVE = V(0, 0, 0), TRAVEL = V(0, 0, 0), START = V(0, 0, 0), AVG = V(0, 0, 0), OFF = V(0, 0, 0), LW = V(0, 0, 0);
 var FIRST = [V(0, 0, 0), V(0, 0, 0)];
 
-function xrSize(i, live) {                               /* live: in the headset, so keep the head where it is and resize the others too */
-  var z = SIZES[i];
-  if (live) toWorld(XRG.headLocal, HW);
-  XRG.size = i; XRG.k = z.k; XRG.E = z.E;
-  XRG.D = { rHand: 0.065 * z.E, rHead: 0.17 * z.E, rBody: 0.3 * z.E, drop: 0.7 * z.E, maxArm: 1.25 * z.k, unstick: z.k, velLimit: 0.3 * z.k, maxJump: 6.5 * Math.pow(z.k, 0.75) };
-  var s = z.E / XRG.EYE0;                                /* every gorilla is the player's size, so the ones standing about are what other players will look like */
+function xrDims() {                                      /* the body: the same for everyone */
+  var E = XRG.E, k = XRG.k;
+  XRG.D = { rHand: 0.065 * E, rHead: 0.17 * E, rBody: 0.3 * E, drop: 0.7 * E, maxArm: 1.42 * E, unstick: k, velLimit: 0.3 * k, maxJump: 6.5 * Math.pow(k, 0.75) };
+  var s = E / XRG.EYE0;                                  /* the gorillas standing about are what other players will look like, so they are this size too */
   if (XRG.on) fighters.forEach(function (f) { f.root.scale.setScalar(s); });
   XRG.spheres = fighters.map(function (f) { return { x: f.root.position.x, y: f.root.position.y + 0.72 * s, z: f.root.position.z, r: 0.5 * s }; });
-  if (live) { placeAround(HW); settle(false); unstick(); }
 }
-
+function reach() {                                       /* how much longer than yours the gorilla's arms are, so the ground sits at your waist */
+  var eye = Math.min(2.05, Math.max(1.0, XRG.eyeH)), R = Math.min(0.85, Math.max(0.3, 0.38 * eye + XRG.groundAdj)), p = BODY.pivot;
+  XRG.arm = Math.min(2.0, Math.max(1.0, (XRG.E / XRG.k - p) / (R - p)));
+}
 /* ---------------- the solid world: every surface you can touch, sorted into a grid of cells ---------------- */
 /* Lights, wires, bulbs, marks on surfaces and little things (bottles, labels, bananas, the hats on show) are left out, so a hand never snags on them. */
-var NOHIT = { wire: 1, bulbE: 1, dripS: 1, poolO: 1, poolF: 1, blob: 1, strip: 1, puddle: 1, cardF: 1, glassB: 1, glassBr: 1, labelP: 1, banana: 1, tape: 1, itemA: 1, itemB: 1, itemC: 1, stain1: 1, stain2: 1, drip: 1, rustDrip: 1 };
+var NOHIT = { fillW: 1, roofF: 1, copF: 1, tankF: 1, netS: 1, wire: 1, bulbE: 1, dripS: 1, poolO: 1, poolF: 1, blob: 1, strip: 1, puddle: 1, cardF: 1, glassB: 1, glassBr: 1, labelP: 1, banana: 1, tape: 1, itemA: 1, itemB: 1, itemC: 1, stain1: 1, stain2: 1, drip: 1, rustDrip: 1 };
 /* what each surface sounds like under a hand: 0 stone, 1 metal, 2 wood, 3 soft, 4 glass */
 var KIND = { steelK: 1, steelG: 1, galv: 1, panelK: 1, lidK: 1, paintG: 1, drumB: 1, drumR: 1, drumK: 1, drumLid: 1, drumIn: 1, rustS: 1, doorG: 1, shutter: 1, grate: 1, hazardS: 1, fenceS: 1, rimO: 1, hydR: 1, callB: 1,
   woodS: 2, boards: 2, card: 2, shopF: 2, boardW: 2,
@@ -2922,8 +3191,9 @@ function castHand(start, move, r) {                      /* slide a hand from st
   if (q.hit) { CAST.hit = true; CAST.kind = q.kind; }
   return CAST;
 }
-function handTarget(h, out) {                            /* where the tracked hand is in the street: the grip, a little forward to the knuckles, no further than an arm from the head */
-  OFF.set(0, 0, -0.03).applyQuaternion(h.q); LW.copy(h.local).add(OFF);
+function handTarget(h, out) {                            /* where the tracked hand is in the street: out from the chest by the gorilla's longer arms, no further than an arm from the head */
+  var a = XRG.arm, py = XRG.headLocal.y - BODY.pivot;
+  LW.set(XRG.headLocal.x + (h.local.x - XRG.headLocal.x) * a, py + (h.local.y - py) * a, XRG.headLocal.z + (h.local.z - XRG.headLocal.z) * a);
   toWorld(LW, out);
   var d = out.distanceTo(HW), max = XRG.D.maxArm;
   if (d > max) out.sub(HW).multiplyScalar(max / d).add(HW);
@@ -2939,10 +3209,11 @@ function unstick() { toWorld(XRG.headLocal, HW); XRG.hands.forEach(function (h) 
 function xrStep(dt) {
   var D = XRG.D, H = XRG.hands, i, h;
   XRG.time += dt; START.copy(XRG.pos); XRG.ground = false;
+  if (XRG.floorKnown && XRG.time < XRG.calibUntil && XRG.headLocal.y > XRG.eyeH + 0.03 && XRG.headLocal.y < 2.1) { XRG.eyeH = XRG.headLocal.y; reach(); unstick(); }   /* stood up straighter in the first seconds */
   /* 1. falling and flying: gravity and whatever speed you have, the head and body kept out of everything */
   XRG.vel.y -= G * dt;
   moveBody(XRG.vel.x * dt, XRG.vel.y * dt, XRG.vel.z * dt, true);
-  if (XRG.ground) { var f = Math.exp(-10 * dt); XRG.vel.x *= f; XRG.vel.z *= f; }
+  if (XRG.ground) { var f = Math.exp(-4.5 * dt); XRG.vel.x *= f; XRG.vel.z *= f; }      /* the body slides a little when it lands, rather than stopping dead */
   /* 2. the hands: one that touches something holds on there, and the body moves to keep it there */
   toWorld(XRG.headLocal, HW);
   for (i = 0; i < 2; i++) {
@@ -2972,7 +3243,7 @@ function xrStep(dt) {
   var v = XRG.hist[XRG.histI]; v.set((XRG.pos.x - START.x) / dt, (XRG.pos.y - START.y) / dt, (XRG.pos.z - START.z) / dt); XRG.histI = (XRG.histI + 1) % XRG.hist.length;
   AVG.set(0, 0, 0); XRG.hist.forEach(function (w) { AVG.add(w); }); AVG.multiplyScalar(1 / XRG.hist.length);
   if ((H[0].coll || H[1].coll) && AVG.length() > D.velLimit) {
-    XRG.vel.copy(AVG).multiplyScalar(1.1);
+    XRG.vel.copy(AVG).multiplyScalar(1.15);
     var sp = XRG.vel.length(); if (sp > D.maxJump) XRG.vel.multiplyScalar(D.maxJump / sp);
   }
   /* 5. a hand left far behind lets go, unless something stands between it and the head */
@@ -2987,13 +3258,18 @@ function xrStep(dt) {
   }
   /* 6. fell out of the street, or climbed over a wall: back to the elevator */
   toWorld(XRG.headLocal, HW);
-  if (HW.y < -4 || HW.y > 22 || !inStreet(HW.x, HW.z)) { XRG.aligned = false; XRG.vel.set(0, 0, 0); toast('Back to the elevator', 2.5); }
+  if (HW.y < -4 || HW.y > 27 || !inStreet(HW.x, HW.z, HW.y)) { XRG.aligned = false; XRG.vel.set(0, 0, 0); toast('Back to the elevator', 2.5); }
 }
-function inStreet(x, z) {                                /* the alley, the street, and the yard with the roof beside it */
-  return (x > -5.9 && x < 4.5 && z > -3.8 && z < 24.6) || (x > -8.6 && x < 40.6 && z > 23.4 && z < 36.9) || (x > 21.4 && x < 40.6 && z > 13.4 && z < 24.6);
+function inStreet(x, z, y) {                             /* the alley, the street, the yard; and on the headset page every roof (but never inside a building) */
+  if ((x > -5.9 && x < 4.5 && z > -3.8 && z < 24.6) || (x > -8.6 && x < 40.6 && z > 23.4 && z < 36.9) || (x > 21.4 && x < 40.6 && z > 13.4 && z < 24.6)) return true;
+  if (typeof roofAt !== 'function' || !ROOF.grid) return false;
+  var h = roofAt(x, z);
+  return h !== null && (y === undefined || h < 0 || y > h - 0.4);
 }
 var FWD = V(0, 0, 0);
 function xrAlign() {                                     /* stand at the spawn, eyes at gorilla height, facing up the alley */
+  if (XRG.floorKnown && XRG.headLocal.y > 0.9) { XRG.eyeH = XRG.eyeMeasured ? Math.max(XRG.eyeH, XRG.headLocal.y) : XRG.headLocal.y; XRG.eyeMeasured = true; }   /* your real eye height sets the reach */
+  reach(); XRG.calibUntil = XRG.time + 8;
   FWD.set(0, 0, -1).applyQuaternion(XRG.headQ);
   XRG.yaw = XRG.spawn.yaw - Math.atan2(FWD.x, FWD.z);
   HW.set(XRG.spawn.pos.x, XRG.spawn.pos.y + XRG.E + 0.02, XRG.spawn.pos.z);
@@ -3006,13 +3282,20 @@ function turn(d) { toWorld(XRG.headLocal, HW); XRG.yaw += d; placeAround(HW); un
 /* ---------------- the controllers ---------------- */
 function pressed(h, i) { var g = h.src && h.src.gamepad; return !!(g && g.buttons[i] && g.buttons[i].pressed); }
 function stickX(h) { var g = h.src && h.src.gamepad; if (!g || !g.axes) return 0; return g.axes.length > 2 ? g.axes[2] : g.axes[0] || 0; }
+function stickY(h) { var g = h.src && h.src.gamepad; if (!g || !g.axes) return 0; return g.axes.length > 3 ? g.axes[3] : g.axes[1] || 0; }
+function button(h, i) { if (h.testB) return h.testB[i] || 0; var g = h.src && h.src.gamepad; return g && g.buttons[i] ? (g.buttons[i].value || (g.buttons[i].pressed ? 1 : 0)) : 0; }
+function saveGround() { try { localStorage.setItem('silverback.ground', String(XRG.groundAdj)); } catch (e) {} }
+function loadGround() { try { var v = parseFloat(localStorage.getItem('silverback.ground')); if (isFinite(v)) XRG.groundAdj = Math.min(0.3, Math.max(-0.25, v)); } catch (e) {} }
 function controls() {
   var L = XRG.hands[0], R = XRG.hands[1], sx = stickX(R);
   if (!XRG.held.turn && Math.abs(sx) > 0.7) { XRG.held.turn = true; turn(sx > 0 ? -Math.PI / 4 : Math.PI / 4); }      /* right stick: turn 45 degrees */
   else if (XRG.held.turn && Math.abs(sx) < 0.3) XRG.held.turn = false;
-  var sz = pressed(R, 5) || pressed(L, 5);              /* B or Y: try the next size */
-  if (sz && !XRG.held.size) { xrSize((XRG.size + 1) % SIZES.length, true); toast(SIZES[XRG.size].name, 2.5); }
-  XRG.held.size = sz;
+  var gy = stickY(L);                                    /* left stick up or down: the ground closer to your hands, or further */
+  if (!XRG.held.ground && Math.abs(gy) > 0.7) {
+    XRG.held.ground = true; XRG.groundAdj = Math.min(0.3, Math.max(-0.25, XRG.groundAdj + (gy < 0 ? -0.03 : 0.03)));
+    reach(); unstick(); saveGround();
+    toast(gy < 0 ? 'Ground closer' : 'Ground further', 1.5);
+  } else if (XRG.held.ground && Math.abs(gy) < 0.3) XRG.held.ground = false;
   var home = pressed(L, 3);                             /* the left stick pressed in: back to the elevator */
   if (home && !XRG.held.home) { XRG.aligned = false; toast('Back to the elevator', 2.5); }
   XRG.held.home = home;
@@ -3031,38 +3314,88 @@ function readPoses(frame) {
   }
 }
 
-/* ---------------- you: your own gorilla's arms and body, under your eyes ---------------- */
+/* ---------------- you: your own gorilla's hands, arms and chest ---------------- */
+/* The hands are their own small model in the controller's grip space (metres, a real hand's size): a broad palm, three thick fingers and a      */
+/* thumb, as picked for the character. The grip's origin is the middle of your closed fist, -Z runs toward your thumb, +X out of the back of your */
+/* right hand, +Y up your arm. Fingers curl with the trigger and grip. The forearm is the gorilla's own, cut at the wrist and reaching to it.    */
 var MQ = new T.Quaternion(), YQ = new T.Quaternion(), GQ = new T.Quaternion(), MINV = new T.Matrix4(), UPV = V(0, 0, 0), TGT = V(0, 0, 0), POLE = V(0, 0, 0), FACE = V(0, 0, 0), YAX = V(0, 1, 0);
-var aS = V(0, 0, 0), aD = V(0, 0, 0), aE = V(0, 0, 0), aP = V(0, 0, 0), aA = V(0, 0, 0), aT = V(0, 0, 0), ax_ = V(0, 0, 0), ay_ = V(0, 0, 0), az_ = V(0, 0, 0);
-var KNUCKLE = 0.79;                                      /* elbow to knuckles on the gorilla's forearm, which ends in its fist */
+var aS = V(0, 0, 0), aD = V(0, 0, 0), aE = V(0, 0, 0), aP = V(0, 0, 0), aA = V(0, 0, 0), aT = V(0, 0, 0), ax_ = V(0, 0, 0), ay_ = V(0, 0, 0), az_ = V(0, 0, 0), WR = V(0, 0, 0), D1 = V(0, 0, 0), D2 = V(0, 0, 0), P1 = V(0, 0, 0);
+var HAND = { scale: 1.32, palm: V(0.018, 0.028, 0.002), wrist: V(0.018, 0.088, 0.002), fingers: [-0.025, 0, 0.025], knuckle: [0.02, -0.012], r: 0.0135, l1: 0.042, l2: 0.036 };
+function skinGeo(g, skin) {                              /* the gorilla shader's own attribute: skin (1) or fur (0), no darkening */
+  var n = g.attributes.position.count, m = new Float32Array(n * 3);
+  for (var i = 0; i < n; i++) { m[i * 3] = skin; m[i * 3 + 1] = 0; m[i * 3 + 2] = 1; }
+  g.setAttribute('mask', new T.BufferAttribute(m, 3)); return g;
+}
+function capsule(r, len, skin) {                         /* a rounded stick from y = 0 to y = len */
+  var prof = [], i, n = 6;
+  for (i = 0; i <= n; i++) { var a = -Math.PI / 2 + Math.PI / 2 * i / n; prof.push(new T.Vector2(Math.max(1e-4, Math.cos(a) * r), r + Math.sin(a) * r)); }
+  for (i = 0; i <= n; i++) { var b = Math.PI / 2 * i / n; prof.push(new T.Vector2(Math.max(1e-4, Math.cos(b) * r), len - r + Math.sin(b) * r)); }
+  return skinGeo(new T.LatheGeometry(prof, 12), skin);
+}
+function cutFore(g, below) {                             /* the gorilla's forearm without its own (much bigger) hand */
+  var pos = g.attributes.position.array, idx = g.index.array, keep = [];
+  for (var t = 0; t < idx.length; t += 3) { if (pos[idx[t] * 3 + 1] >= below && pos[idx[t + 1] * 3 + 1] >= below && pos[idx[t + 2] * 3 + 1] >= below) keep.push(idx[t], idx[t + 1], idx[t + 2]); }
+  var c = new T.BufferGeometry();
+  ['position', 'normal', 'mask', 'paint'].forEach(function (k) { if (g.attributes[k]) c.setAttribute(k, g.attributes[k]); });
+  c.setIndex(keep); return c;
+}
+function makeHand(skinMat, furMat, left) {
+  var g = new T.Group(), H = HAND, parts = { group: g, fingers: [], thumb: [] };
+  var palm = new T.Mesh(skinGeo(new T.SphereGeometry(1, 18, 12), 1), skinMat); palm.scale.set(0.018, 0.044, 0.045); palm.position.copy(H.palm); g.add(palm);
+  var bar = new T.Mesh(capsule(0.016, 0.074, 1), skinMat); bar.position.set(0.02, -0.006, -0.037); bar.rotation.x = Math.PI / 2; g.add(bar);       /* the row of knuckles */
+  var cuff = new T.Mesh(capsule(0.029, 0.1, 0), furMat); cuff.position.set(0.016, 0.045, 0.002); g.add(cuff);                                     /* fur at the wrist, where the arm joins */
+  H.fingers.forEach(function () { var a = new T.Mesh(capsule(H.r, H.l1 + H.r, 1), skinMat), b = new T.Mesh(capsule(H.r * 0.95, H.l2 + H.r, 1), skinMat); g.add(a); g.add(b); parts.fingers.push([a, b]); });
+  var t1 = new T.Mesh(capsule(H.r, 0.036, 1), skinMat), t2 = new T.Mesh(capsule(H.r * 0.93, 0.032, 1), skinMat); g.add(t1); g.add(t2); parts.thumb = [t1, t2];
+  parts.side = left ? -1 : 1; g.scale.set(left ? -1 : 1, 1, 1);
+  return parts;
+}
+function curlHand(hp, index, rest, thumb) {             /* index, rest, thumb: 0 open to 1 closed */
+  var H = HAND;
+  H.fingers.forEach(function (z, i) {
+    var c = i === 0 ? index : rest, f1 = 0.25 + 1.2 * c, f2 = f1 + 0.3 + 1.4 * c, seg = hp.fingers[i];
+    D1.set(-Math.sin(f1), -Math.cos(f1), 0); D2.set(-Math.sin(f2), -Math.cos(f2), 0);
+    seg[0].position.set(H.knuckle[0], H.knuckle[1], z); seg[0].quaternion.setFromUnitVectors(YAX, D1);
+    P1.copy(seg[0].position).addScaledVector(D1, H.l1); seg[1].position.copy(P1); seg[1].quaternion.setFromUnitVectors(YAX, D2);
+  });
+  D1.set(-0.15 - 0.6 * thumb, -0.4, -0.9 + 0.45 * thumb).normalize(); D2.set(-0.3 - 0.75 * thumb, -0.55, -0.75 + 0.6 * thumb).normalize();
+  hp.thumb[0].position.set(0.006, 0.02, -0.038); hp.thumb[0].quaternion.setFromUnitVectors(YAX, D1);
+  P1.copy(hp.thumb[0].position).addScaledVector(D1, 0.036); hp.thumb[1].position.copy(P1); hp.thumb[1].quaternion.setFromUnitVectors(YAX, D2);
+}
 function makeMe() {
-  var f = makeFighter(V(0, 0, 0), 0, 'stand', 0, STREET_LOOK);
+  var f = makeFighter(V(0, 0, 0), 0, 'stand', 0, STREET_LOOK), F = DATA.faces['new'], env = envAt(V(0, 0, 0), 0, STREET_LOOK);
   f.head.visible = false;                                /* your own head stays out of your eyes */
+  var below = -(f.M.L2 + 0.03);
+  f.arms.forEach(function (a) { a.fore.geometry = cutFore(a.fore.geometry, below); });
+  f.torso.material.uniforms.uGrain.value = 0.4;          /* close up, the fur's grain is softer so it doesn't look like blocks */
+  var skinMat = material(F.skin, F.skin2, F.skin, null, 0, env), furMat = a0Fur(f);
+  XRG.handsVis = [makeHand(skinMat, furMat, true), makeHand(skinMat, furMat, false)];
+  XRG.handsVis.forEach(function (hp) { hp.group.visible = false; scene.add(hp.group); curlHand(hp, 0.2, 0.2, 0.2); });
   f.root.visible = false; scene.add(f.root); XRG.me = f;
 }
-function aimMe(mesh, from, axis, facing, st) {
+function a0Fur(f) { return f.torso.material; }           /* the body's own fur */
+function aimMe(mesh, from, axis, facing, st, thin) {    /* thin: your own arms are slimmer than the others' so they don't fill your view */
   ay_.copy(axis).negate();
   az_.copy(facing).addScaledVector(axis, -facing.dot(axis));
   if (az_.lengthSq() < 0.04) { az_.set(0, 1, 0).addScaledVector(axis, -axis.y); if (az_.lengthSq() < 0.04) az_.set(0, 0, 1).addScaledVector(axis, -axis.z); }
-  az_.normalize(); ax_.crossVectors(ay_, az_); ay_.multiplyScalar(st);
+  az_.normalize(); ax_.crossVectors(ay_, az_); ay_.multiplyScalar(st); ax_.multiplyScalar(thin); az_.multiplyScalar(thin);
   mesh.matrix.makeBasis(ax_, ay_, az_).setPosition(from); mesh.matrixWorldNeedsUpdate = true;
 }
-function reachArm(f, a, target, pole, face) {           /* shoulder to elbow to knuckles; an arm too short to reach stretches a little */
+function reachArm(f, a, target, pole, face) {           /* shoulder to elbow to wrist; an arm too short to reach stretches */
   var M = f.M, s = a.side;
   aS.set(s * M.shoulder[0], M.shoulder[1], M.shoulder[2]);
   aD.subVectors(target, aS);
-  var want = aD.length(), full = M.L1 + KNUCKLE, st = Math.min(1.5, Math.max(1, want / (full - 0.01))), L1 = M.L1 * st, L2 = KNUCKLE * st;
+  var want = aD.length(), full = M.L1 + M.L2, st = Math.min(1.9, Math.max(1, want / (full - 0.01))), L1 = M.L1 * st, L2 = M.L2 * st;
   var dist = Math.min(Math.max(want, Math.abs(L1 - L2) + 0.01), L1 + L2 - 0.004);
   aD.normalize();
   var along = (L1 * L1 - L2 * L2 + dist * dist) / (2 * dist), outw = Math.sqrt(Math.max(L1 * L1 - along * along, 0));
   aP.copy(pole).addScaledVector(aD, -pole.dot(aD)).normalize();
   aE.copy(aS).addScaledVector(aD, along).addScaledVector(aP, outw);
-  aA.subVectors(aE, aS).normalize(); aimMe(a.upper, aS, aA, face, st);
-  aT.copy(aS).addScaledVector(aD, dist); aA.subVectors(aT, aE).normalize(); aimMe(a.fore, aE, aA, face, st);
+  aA.subVectors(aE, aS).normalize(); aimMe(a.upper, aS, aA, face, st, 0.72);
+  aT.copy(aS).addScaledVector(aD, dist); aA.subVectors(aT, aE).normalize(); aimMe(a.fore, aE, aA, face, st, 0.6);
 }
 function poseMe() {
   var f = XRG.me; if (!f) return;
-  var s = XRG.E / XRG.EYE0;
+  var s = XRG.E / XRG.EYE0, hs = HAND.scale * XRG.k;
   toWorld(XRG.headLocal, HW);
   YQ.setFromAxisAngle(YAX, XRG.yaw); MQ.copy(YQ).multiply(XRG.headQ);
   FWD.set(0, 0, -1).applyQuaternion(MQ); UPV.set(0, 1, 0).applyQuaternion(MQ);
@@ -3072,12 +3405,18 @@ function poseMe() {
   f.root.position.set(HW.x - s * (e.x * c + e.z * sn), HW.y - s * e.y, HW.z - s * (-e.x * sn + e.z * c));
   f.root.updateMatrixWorld(true); MINV.copy(f.root.matrixWorld).invert();
   f.arms.forEach(function (a) {
-    var h = a.side > 0 ? XRG.hands[0] : XRG.hands[1];
-    a.upper.visible = a.fore.visible = h.tracked;
+    var h = a.side > 0 ? XRG.hands[0] : XRG.hands[1], hp = a.side > 0 ? XRG.handsVis[0] : XRG.handsVis[1];
+    a.upper.visible = a.fore.visible = hp.group.visible = h.tracked;
     if (!h.tracked) return;
-    TGT.copy(h.last).applyMatrix4(MINV);
+    GQ.copy(YQ).multiply(h.q); h.wq.copy(GQ);             /* the controller's turn in the street */
+    hp.group.position.copy(h.last); hp.group.quaternion.copy(GQ); hp.group.scale.set(hp.side * hs, hs, hs);
+    var grip = button(h, 1), trig = button(h, 0);
+    curlHand(hp, 0.15 + 0.85 * trig, 0.15 + 0.85 * grip, 0.15 + 0.85 * Math.max(grip, trig) * 0.9);
+    hp.group.updateMatrixWorld(true);
+    WR.copy(HAND.wrist).applyMatrix4(hp.group.matrixWorld);                    /* the arm reaches the wrist, not the knuckles */
+    TGT.copy(WR).applyMatrix4(MINV);
     POLE.set(a.side * 0.8, -0.5, -0.5);
-    GQ.copy(YQ).multiply(h.q); FACE.set(0, 0, -1).applyQuaternion(GQ).applyAxisAngle(YAX, -yaw);      /* knuckles face where the controller points */
+    FACE.set(hp.side, 0, 0).applyQuaternion(GQ).applyAxisAngle(YAX, -yaw);     /* the back of the forearm turns with the back of the hand */
     reachArm(f, a, TGT, POLE, FACE);
   });
 }
@@ -3134,7 +3473,7 @@ function xrFrameTick(dt, frame) {
     if (!XRG.aligned && XRG.poseSeen) xrAlign();
     if (XRG.aligned) {
       controls();
-      if (XRG.aligned) { xrStep(Math.min(dt, 1 / 30)); poseMe(); }
+      if (XRG.aligned) { xrStep(Math.min(dt, 1 / 30)); poseMe(); if (typeof propsStep === 'function') propsStep(Math.min(dt, 1 / 30)); }
     }
     if (XRG.toastT > 0) { XRG.toastT -= dt; if (XRG.toastT <= 0 && XRG.toast) XRG.toast.visible = false; }
   } catch (e) { if (!XRG.failed) { XRG.failed = true; problem('headset', e); } }
@@ -3144,19 +3483,23 @@ function xrFrameTick(dt, frame) {
 function xrEnter() {
   XRG.on = true; XRG.aligned = false; XRG.poseSeen = false; XRG.failed = false;
   if (!XRG.col) buildCollision(XRG.world);
-  xrSize(XRG.size, false);
+  if (typeof propsSettle === 'function') propsSettle();
+  xrDims(); loadGround();
   if (typeof WET !== 'undefined' && WET) WET.mesh.visible = false;      /* the mirrored wet ground costs a second picture each frame; the headset needs that time */
   if (!XRG.me) makeMe();
   XRG.me.root.visible = true;
   PIX.value = 0.0016;
   if (XRG.button) XRG.button.textContent = 'Exit VR';
-  toast('Push the ground with your hands to move', 8, 'Right stick turns · B or Y changes size');
+  toast('Push the ground with your hands to move', 8, 'Right stick turns \u00b7 Left stick moves the ground');
 }
 function xrExit() {
   XRG.on = false; XRG.session = null; XRG.ref = null;
+  if (typeof letGo === 'function') XRG.hands.forEach(function (h, i) { if (h.held) letGo(h, i); });
+  if (typeof boomOff === 'function') boomOff();
   fighters.forEach(function (f) { f.root.scale.setScalar(1); });
   if (typeof WET !== 'undefined' && WET) WET.mesh.visible = true;
   if (XRG.me) XRG.me.root.visible = false;
+  (XRG.handsVis || []).forEach(function (hp) { hp.group.visible = false; });
   if (XRG.button) XRG.button.textContent = 'Enter VR';
   resize();
 }
@@ -3167,9 +3510,12 @@ function xrStart() {
     XRG.session = session;
     session.addEventListener('end', xrExit);
     renderer.xr.enabled = true;
-    renderer.xr.setReferenceSpaceType('local');
     renderer.xr.setFramebufferScaleFactor(1.0);
-    return renderer.xr.setSession(session).then(function () {
+    return session.requestReferenceSpace('local-floor').then(function () { return 'local-floor'; }, function () { return 'local'; }).then(function (type) {
+      XRG.floorKnown = type === 'local-floor';
+      renderer.xr.setReferenceSpaceType(type);
+      return renderer.xr.setSession(session);
+    }).then(function () {
       XRG.ref = renderer.xr.getReferenceSpace();
       try { var layer = session.renderState.baseLayer; if (layer && 'fixedFoveation' in layer) layer.fixedFoveation = 0.5; } catch (e) {}
       xrEnter();
@@ -3192,7 +3538,7 @@ function xrButton() {
   navigator.xr.isSessionSupported('immersive-vr').then(function (ok) {
     if (!ok) { no(); return; }
     b.hidden = false; renderer.xr.enabled = true;
-    setTimeout(function () { try { if (!XRG.col) buildCollision(XRG.world); } catch (e) { problem('headset walls', e); } }, 500);    /* sort the walls before anyone presses the button */
+    setTimeout(function () { try { if (!XRG.col) buildCollision(XRG.world); if (typeof propsSettle === 'function') propsSettle(); } catch (e) { problem('headset walls', e); } }, 500);    /* sort the walls before anyone presses the button */
   }).catch(no);
 }
 function xrSetup(world) {
@@ -3201,29 +3547,614 @@ function xrSetup(world) {
   XRG.EYE0 = M.head[1] + eye[1]; XRG.EYEM = V(0, XRG.EYE0, M.head[2] + eye[2]);
   XRG.rig = new T.Group(); XRG.cam = new T.PerspectiveCamera(70, 1, 0.05, 160); XRG.rig.add(XRG.cam); scene.add(XRG.rig);
   for (var i = 0; i < 6; i++) XRG.hist.push(V(0, 0, 0));
-  xrSize(1, false);
+  xrDims();
   var sub = document.querySelector('.sub'); if (sub) SCENE.sub = sub.textContent;
+  if (typeof propsSetup === 'function') propsSetup();     /* the loose bottles, cans, ball and bags */
   xrButton();
   if (window.__xrtest) window.__xrg = XRG;              /* for the tests with an emulated headset */
   if (window.__manual || window.__xrtest) window.__xr = {   /* for the tests: run the arm movement without a headset */
-    build: function () { return buildCollision(world); },
-    size: function (i) { xrSize(i, false); return XRG.D; },
-    spawn: function (x, z, yaw, headY) { XRG.spawn.pos.set(x, 0, z); XRG.spawn.yaw = yaw || 0; XRG.headLocal.set(0, headY || 1.6, 0); XRG.headQ.set(0, 0, 0, 1); xrAlign(); return xrState(); },
+    build: function () { var n = buildCollision(world); if (typeof propsSettle === 'function') { PROPS.settled = false; propsSettle(); } return n; },
+    size: function () { xrDims(); return XRG.D; },
+    eye: function (h, adj) { XRG.eyeH = h; XRG.groundAdj = adj || 0; reach(); return XRG.arm; },
+    spawn: function (x, z, yaw, headY, y) { XRG.spawn.pos.set(x, y || 0, z); XRG.spawn.yaw = yaw || 0; XRG.headLocal.set(0, headY || 1.6, 0); XRG.headQ.set(0, 0, 0, 1); xrAlign(); return xrState(); },
     step: function (dt, head, L, R, n) {
       for (var k = 0; k < (n || 1); k++) {
         if (head) XRG.headLocal.set(head[0], head[1], head[2]);
-        [L, R].forEach(function (p, j) { var h = XRG.hands[j]; h.tracked = !!p; if (p) { h.local.set(p[0], p[1], p[2]); h.q.set(0, 0, 0, 1); } });
-        xrStep(dt);
+        [L, R].forEach(function (p, j) { var h = XRG.hands[j]; h.tracked = !!p; if (p) { h.local.set(p[0], p[1], p[2]); h.q.set(0, 0, 0, 1); h.wq.setFromAxisAngle(YAX, XRG.yaw); h.testB = p.length > 3 ? [p[3], p[4]] : null; } });
+        xrStep(dt); if (typeof propsStep === 'function') propsStep(dt);
       }
       return xrState();
     },
-    state: function () { return xrState(); }
+    state: function () { return xrState(); },
+    props: function () { return PROPS.list.map(function (P) { return { type: P.type, p: [+P.p.x.toFixed(3), +P.p.y.toFixed(3), +P.p.z.toFixed(3)], asleep: P.asleep, broken: P.broken, held: !!P.held }; }); },
+    poke: function (i, vx, vy, vz) { var P = PROPS.list[i]; propWake(P); P.v.set(vx, vy, vz); },
+    place: function (i, x, y, z, upright) { var P = PROPS.list[i]; P.p.set(x, y, z); if (upright) P.q.set(0, 0, 0, 1); P.v.set(0, 0, 0); P.w.set(0, 0, 0); propWake(P); },
+    raw: function (i) { var P = PROPS.list[i]; return { v: [P.v.x, P.v.y, P.v.z].map(function (n) { return +n.toFixed(4); }), w: [P.w.x, P.w.y, P.w.z].map(function (n) { return +n.toFixed(3); }), q: [P.q.x, P.q.y, P.q.z, P.q.w].map(function (n) { return +n.toFixed(4); }), still: +P.still.toFixed(2), ground: P.onGround, asleep: P.asleep }; },
+    clear: function (x, y, z, r) { return !nearest(x, y, z, r).hit; },
+    surface: function (x, y, z) { for (var yy = y; yy > y - 1.5; yy -= 0.004) { var q = nearest(x, yy, z, 0.003); if (q.hit) return +yy.toFixed(3); } return null; },
+    home: function (i) { var P = PROPS.list[i]; return { p: [P.home.p.x, P.home.p.y, P.home.p.z], base: P.baseY, type: P.type }; },
+    score: function () { return PROPS.score; },
+    call: function () { return { lit: PROPS.time < CALL.lit, said: CALL.said }; },
+    press: function () { boomToggle(); return BOOM.on; }, pressCall: function () { callPress(); return PROPS.time < CALL.lit; }, playing: function () { return BOOM.el ? { paused: BOOM.el.paused, t: BOOM.el.currentTime, src: BOOM.el.src, ready: BOOM.el.readyState } : null; },
+    boom: function () { return { on: BOOM.on, list: BOOM.list, at: BOOM.P && [BOOM.P.p.x, BOOM.P.p.y, BOOM.P.p.z], key: [BOOM.KP.x, BOOM.KP.y, BOOM.KP.z] }; }
   };
 }
 function xrState() {
   toWorld(XRG.headLocal, HW);
   function r3(v) { return [Math.round(v.x * 1000) / 1000, Math.round(v.y * 1000) / 1000, Math.round(v.z * 1000) / 1000]; }
   return { head: r3(HW), vel: r3(XRG.vel), ground: XRG.ground, L: { last: r3(XRG.hands[0].last), coll: XRG.hands[0].coll, kind: XRG.hands[0].kind }, R: { last: r3(XRG.hands[1].last), coll: XRG.hands[1].coll, kind: XRG.hands[1].kind }, aligned: XRG.aligned, k: XRG.k, E: XRG.E };
+}
+/* ================================================================== */
+/* Loose things you can knock over, pick up and throw: bottles (which  */
+/* smash on a hard hit and come back later), soda cans, the basketball */
+/* and the trash bags. A small physics of its own: each thing is a few */
+/* spheres that bounce, slide and roll on the street's surfaces. Close */
+/* your whole fist (grip and trigger) to grab, open it to let go.      */
+/* ================================================================== */
+var PROPS = { on: true, building: false, specs: [], list: [], mats: {}, ready: false, hint: false, shadows: null, shards: null, shardList: [], time: 0, score: 0 };
+PROPS.add = function (type, o) { o.type = type; o.uni = LIGHTS; o.lamps = LAMPS; PROPS.specs.push(o); };      /* remembers the lamps of the part of the street that put it there */
+PROPS.sets = [];
+function ring4(rad, y, r) { return [[rad, y, 0, r], [-rad, y, 0, r], [0, y, rad, r], [0, y, -rad, r]]; }      /* small balls round a flat end, so a bottle or can stands on it instead of balancing on a point */
+var PTYPE = {                                            /* spheres: [x, y, z, r] measured up from the bottom of the thing */
+  bottle: { mass: 0.45, e: 0.22, mu: 0.4, spheres: ring4(0.021, 0.01, 0.01).concat([[0, 0.034, 0, 0.031], [0, 0.094, 0, 0.031], [0, 0.168, 0, 0.019], [0, 0.212, 0, 0.0155]]), breaks: 3.0, snd: 'glass' },      /* breaks: knocked off a crate, or dropped from a hand, it smashes */
+  can: { mass: 0.3, e: 0.3, mu: 0.5, spheres: ring4(0.024, 0.008, 0.008).concat(ring4(0.024, 0.114, 0.008), [[0, 0.032, 0, 0.032], [0, 0.09, 0, 0.032]]), snd: 'can' },
+  ball: { mass: 0.6, e: 0.85, mu: 0.75, spheres: [[0, 0.12, 0, 0.12]], snd: 'ball', roll: true },
+  bag: { mass: 3.5, e: 0.04, mu: 0.95, spheres: null, snd: 'bag' },
+  boombox: { mass: 3.2, e: 0.12, mu: 0.6, spheres: [-0.165, -0.055, 0.055, 0.165].reduce(function (a, x) { return a.concat([[x, 0.065, 0, 0.065], [x, 0.205, 0, 0.065]]); }, []), snd: 'boom' }
+};
+/* extra soda cans, standing (lie undefined) or lying on their side, on surfaces that are really there */
+var CANS = [[2.95, 0, 6.05, 1.2], [-3.95, 0.95, 11.55], [0.7, 0, 20.45], [-2.25, 0.36, 18.75], [-5.1, 0.66, 24.45], [9.6, 0.12, 25.7, 0.4], [37.85, 6.466, 17.45], [35.4, 0, 31.3, 2.2], [27.2, 0, 22.6], [-0.5, 0, 9.2, 3.0]];
+var PV = V(0, 0, 0), PN = V(0, 0, 0), PC = V(0, 0, 0), PO = V(0, 0, 0), PRC = V(0, 0, 0), PVC = V(0, 0, 0), PRX = V(0, 0, 0), PVT = V(0, 0, 0), PQ = new T.Quaternion(), PQ2 = new T.Quaternion(), PM = new T.Matrix4(), PS = V(1, 1, 1);
+
+/* ---------------- how each thing looks ---------------- */
+function latheGeo(prof, seg, H) {                        /* a turned shape, texture v running bottom (0) to top (1) by height */
+  var pos = [], nrm = [], uv = [], n = prof.length, i, j, nr = [];
+  for (i = 0; i < n; i++) { var a = prof[Math.max(0, i - 1)], b = prof[Math.min(n - 1, i + 1)], dr = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dr, dy) || 1; nr.push([dy / l, -dr / l]); }
+  function push(i, j) { var ang = j / seg * Math.PI * 2, s = Math.sin(ang), c = Math.cos(ang); pos.push(s * prof[i][0], prof[i][1], c * prof[i][0]); nrm.push(s * nr[i][0], nr[i][1], c * nr[i][0]); uv.push(j / seg, prof[i][1] / H); }
+  for (i = 0; i < n - 1; i++) for (j = 0; j < seg; j++) {
+    if (prof[i][0] > 1e-5) { push(i, j); push(i, j + 1); push(i + 1, j + 1); }
+    if (prof[i + 1][0] > 1e-5) { push(i, j); push(i + 1, j + 1); push(i + 1, j); }
+  }
+  var g = new T.BufferGeometry();
+  g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new T.Float32BufferAttribute(nrm, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2));
+  return g;
+}
+function propTextures() {
+  function paint(w, h, fn) { var c = document.createElement('canvas'); c.width = w; c.height = h; fn(c.getContext('2d'), w, h); var t = smoothTex(new T.CanvasTexture(c)); t.userData = { w: w, h: h }; return t; }
+  function bottleTex(glass, label, ink) {
+    return paint(64, 256, function (g, w, h) {                /* v = 0 at the bottom: the canvas is drawn upside down from that */
+      g.fillStyle = glass; g.fillRect(0, 0, w, h);
+      var gr = g.createLinearGradient(0, 0, w, 0); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.45, 'rgba(255,255,255,0.18)'); gr.addColorStop(0.55, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+      var y0 = h * (1 - 0.5), y1 = h * (1 - 0.22);             /* the paper label, between 22% and 50% of the height */
+      g.fillStyle = label; g.fillRect(0, y0, w, y1 - y0); g.fillStyle = ink; g.fillRect(0, y0 + (y1 - y0) * 0.38, w, (y1 - y0) * 0.24);
+      g.fillStyle = 'rgba(60,50,40,0.35)'; for (var k = 0; k < 6; k++) g.fillRect(Math.random() * w, y0 + Math.random() * (y1 - y0), 3 + Math.random() * 6, 2);
+      g.fillStyle = '#b9b2a0'; g.fillRect(0, 0, w, h * 0.05);   /* the cap */
+    });
+  }
+  TEX.bottleBr = bottleTex('#3b220f', '#c9bd9c', '#8a2f22'); TEX.bottleGr = bottleTex('#1c3424', '#d6d0bd', '#24426e');
+  function canTex(body, band) {
+    return paint(64, 128, function (g, w, h) {
+      g.fillStyle = '#aab0b6'; g.fillRect(0, 0, w, h);
+      g.fillStyle = body; g.fillRect(0, h * 0.09, w, h * 0.82);
+      g.fillStyle = band; g.fillRect(0, h * 0.42, w, h * 0.12); g.beginPath(); g.arc(w * 0.3, h * 0.48, w * 0.12, 0, 7); g.fill();
+      g.fillStyle = 'rgba(255,255,255,0.22)'; g.fillRect(w * 0.45, h * 0.09, w * 0.08, h * 0.82);
+    });
+  }
+  TEX.canR = canTex('#9e2a22', '#f1ece2'); TEX.canB = canTex('#24477e', '#e9e5da'); TEX.canG = canTex('#2c5a34', '#e7e0c8');
+  TEX.boomF = paint(256, 150, function (g, w, h) {           /* the boombox's front: two speakers, the tape deck, the tuner strip */
+    g.fillStyle = '#17181b'; g.fillRect(0, 0, w, h); g.fillStyle = '#26282d'; g.fillRect(4, 4, w - 8, h - 8);
+    g.fillStyle = '#8d9298'; g.fillRect(6, 10, w - 12, 3); g.fillRect(6, h - 13, w - 12, 3);
+    [58, 198].forEach(function (x) {
+      var y = 84; g.fillStyle = '#0d0e10'; g.beginPath(); g.arc(x, y, 50, 0, 7); g.fill();
+      g.strokeStyle = '#9ba0a6'; g.lineWidth = 3; g.beginPath(); g.arc(x, y, 50, 0, 7); g.stroke();
+      g.fillStyle = '#2b2d31'; for (var yy = y - 44; yy < y + 44; yy += 5) for (var xx = x - 44; xx < x + 44; xx += 5) if ((xx - x) * (xx - x) + (yy - y) * (yy - y) < 44 * 44) g.fillRect(xx, yy, 2.4, 2.4);      /* the grille */
+      g.fillStyle = '#3c3f44'; g.beginPath(); g.arc(x, y, 12, 0, 7); g.fill();
+    });
+    g.fillStyle = '#0b0c0d'; g.fillRect(104, 58, 48, 42); g.strokeStyle = '#8d9298'; g.lineWidth = 2; g.strokeRect(104, 58, 48, 42);      /* the tape deck */
+    g.fillStyle = '#3d2f24'; g.fillRect(110, 70, 36, 16); g.fillStyle = '#c9c2b0'; [118, 138].forEach(function (x) { g.beginPath(); g.arc(x, 78, 5, 0, 7); g.fill(); });
+    g.fillStyle = '#0b0c0d'; g.fillRect(100, 22, 56, 22); g.strokeStyle = '#c9c2b0'; g.lineWidth = 1; for (var k = 0; k < 12; k++) { g.beginPath(); g.moveTo(104 + k * 4.4, 36); g.lineTo(104 + k * 4.4, 40); g.stroke(); }
+    g.fillStyle = '#d23a2a'; g.fillRect(126, 25, 2, 15);                                         /* the tuner's needle */
+    g.fillStyle = '#8d9298'; for (var b = 0; b < 4; b++) g.fillRect(106 + b * 12, 110, 8, 18);  /* the sliders */
+  });
+  TEX.boomT = paint(128, 64, function (g, w, h) {             /* its top: the piano keys, play in red */
+    g.fillStyle = '#1d1e21'; g.fillRect(0, 0, w, h);
+    for (var k = 0; k < 6; k++) { g.fillStyle = k === 1 ? '#b8382a' : '#a9adb2'; g.fillRect(30 + k * 11, 40, 9, 18); g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(30 + k * 11, 55, 9, 3); }
+  });
+  TEX.ballT = paint(256, 128, function (g, w, h) {           /* a basketball, worn: pebbled orange, black seams */
+    g.fillStyle = '#b4561c'; g.fillRect(0, 0, w, h);
+    for (var k = 0; k < 2600; k++) { g.fillStyle = Math.random() < 0.5 ? 'rgba(0,0,0,0.1)' : 'rgba(255,200,150,0.08)'; g.fillRect(Math.random() * w, Math.random() * h, 1.5, 1.5); }
+    g.strokeStyle = '#1a1210'; g.lineWidth = 3;
+    g.beginPath(); g.moveTo(0, h / 2); g.lineTo(w, h / 2); g.stroke();
+    [0.25, 0.75].forEach(function (u) { g.beginPath(); g.moveTo(w * u, 0); g.lineTo(w * u, h); g.stroke(); });
+    [0, 0.5].forEach(function (u) { g.beginPath(); for (var y = 0; y <= h; y += 4) { var x = w * u + Math.sin(y / h * Math.PI) * w * 0.11; if (y) g.lineTo(x, y); else g.moveTo(x, y); } g.stroke(); g.beginPath(); for (var y2 = 0; y2 <= h; y2 += 4) { var x2 = w * u - Math.sin(y2 / h * Math.PI) * w * 0.11; if (y2) g.lineTo(x2 < 0 ? x2 + w : x2, y2); else g.moveTo(x2 < 0 ? x2 + w : x2, y2); } g.stroke(); });
+  });
+}
+var BOTTLE_PROF = [[0.0, 0], [0.026, 0], [0.031, 0.006], [0.031, 0.125], [0.027, 0.15], [0.014, 0.185], [0.0125, 0.214], [0.0155, 0.217], [0.0155, 0.228], [0.0, 0.228]];
+var CAN_PROF = [[0.0, 0.002], [0.025, 0.0], [0.031, 0.008], [0.032, 0.013], [0.032, 0.109], [0.028, 0.118], [0.027, 0.122], [0.0, 0.12]];
+function matsFor(o) {                                    /* each thing is lit by the lamps of the part of the street it starts in */
+  if (!o.uni) {                                          /* the extra cans: the lamps of whatever the street put nearest */
+    var best = null, bd = 1e9;
+    PROPS.specs.forEach(function (q) { var d = (q.x - o.x) * (q.x - o.x) + (q.z - o.z) * (q.z - o.z); if (q.uni && d < bd) { bd = d; best = q; } });
+    o.uni = best ? best.uni : ARENA_LIGHTS.uni; o.lamps = best ? best.lamps : ARENA_LIGHTS.lamps;
+  }
+  var key = PROPS.sets.indexOf(o.uni);
+  if (key < 0) { key = PROPS.sets.length; PROPS.sets.push(o.uni); }
+  if (PROPS.mats[key]) return PROPS.mats[key];
+  useLights({ uni: o.uni, lamps: o.lamps });
+  function mat(o) { o.snap = false; return roomMat(o); }
+  var m = {
+    bagK: mat({ tex: TEX.bagT, gloss: 0.1, shine: 7, two: true }), bagW: mat({ tex: TEX.bagT, color: 0xb9bdc6, gloss: 0.1, shine: 7, two: true }),
+    bottleBr: mat({ tex: TEX.bottleBr, gloss: 1.0, shine: 46 }), bottleGr: mat({ tex: TEX.bottleGr, gloss: 1.0, shine: 46 }),
+    canR: mat({ tex: TEX.canR, gloss: 0.7, shine: 34 }), canB: mat({ tex: TEX.canB, gloss: 0.7, shine: 34 }), canG: mat({ tex: TEX.canG, gloss: 0.7, shine: 34 }),
+    ball: mat({ tex: TEX.ballT, gloss: 0.15, shine: 12 }),
+    boomS: mat({ color: 0x1b1c1f, gloss: 0.35, shine: 30 }), boomF: mat({ tex: TEX.boomF, gloss: 0.25, shine: 26 }), boomT: mat({ tex: TEX.boomT, gloss: 0.35, shine: 30 }), chrome: mat({ color: 0xb4b8be, gloss: 0.85, shine: 60 })
+  };
+  useLights(ARENA_LIGHTS);
+  return (PROPS.mats[key] = m);
+}
+function boomboxMesh(M) {                                /* 46 cm of black plastic, a chrome handle, an aerial: built standing on its base at the origin */
+  var g = new T.Group(), W = 0.46, H = 0.27, D = 0.13;
+  var body = new T.Mesh(new T.BoxGeometry(W, H, D), [M.boomS, M.boomS, M.boomT, M.boomS, M.boomF, M.boomS]); body.position.set(0, H / 2, 0); g.add(body);
+  [-0.15, 0.15].forEach(function (x) { var post = new T.Mesh(new T.CylinderGeometry(0.008, 0.008, 0.06, 6), M.chrome); post.position.set(x, H + 0.03, 0); g.add(post); });
+  var bar = new T.Mesh(new T.CylinderGeometry(0.011, 0.011, 0.33, 8), M.chrome); bar.rotation.z = Math.PI / 2; bar.position.set(0, H + 0.062, 0); g.add(bar);
+  var aer = new T.Mesh(new T.CylinderGeometry(0.0025, 0.0035, 0.34, 4), M.chrome); aer.position.set(0.2, H + 0.15, -0.045); aer.rotation.z = -0.5; aer.rotation.x = -0.25; g.add(aer);
+  return g;
+}
+function captureBag(o) {                                 /* the bag shape the street already makes, built at the origin as its own mesh */
+  var keep = buckets; buckets = {}; PROPS.building = true;
+  try { bag(0, 0, o.s, o.seed, o.key, 0); } finally { PROPS.building = false; }
+  var got = buckets, b = got[o.key || 'bagK']; buckets = keep;
+  var g = new T.BufferGeometry();
+  g.setAttribute('position', new T.Float32BufferAttribute(b.pos, 3)); g.setAttribute('normal', new T.Float32BufferAttribute(b.nrm, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(b.uv.length ? b.uv : new Array(b.pos.length / 3 * 2).fill(0), 2));
+  return g;
+}
+
+/* ---------------- making them ---------------- */
+function propMake(o) {
+  var T_ = PTYPE[o.type], M = matsFor(o), geo, mat, spheres = T_.spheres;
+  var green = false;
+  if (o.type === 'bottle') { geo = PROPS.geoBottle || (PROPS.geoBottle = latheGeo(BOTTLE_PROF, 14, 0.228)); green = hash2(o.x, o.z, 3) >= 0.6; mat = green ? M.bottleGr : M.bottleBr; }
+  else if (o.type === 'can') { geo = PROPS.geoCan || (PROPS.geoCan = latheGeo(CAN_PROF, 14, 0.122)); mat = [M.canR, M.canB, M.canG][Math.floor(hash2(o.x, o.z, 6) * 3) % 3]; }
+  else if (o.type === 'ball') { geo = new T.SphereGeometry(0.12, 24, 16); geo.translate(0, 0.12, 0); mat = M.ball; }
+  else if (o.type === 'boombox') geo = null;
+  else { geo = captureBag(o); mat = M[o.key || 'bagK']; var s = o.s; spheres = [[0, 0.2 * s, 0, 0.2 * s], [0.14 * s, 0.16 * s, 0, 0.16 * s], [-0.14 * s, 0.16 * s, 0, 0.16 * s], [0, 0.16 * s, 0.12 * s, 0.16 * s], [0, 0.16 * s, -0.12 * s, 0.16 * s], [0, 0.34 * s, 0, 0.12 * s]]; }
+  /* the centre of mass, and the spheres around it */
+  var com = V(0, 0, 0), wsum = 0;
+  spheres.forEach(function (q) { var w = q[3] * q[3] * q[3]; com.x += q[0] * w; com.y += q[1] * w; com.z += q[2] * w; wsum += w; });
+  com.multiplyScalar(1 / wsum);
+  var sph = spheres.map(function (q) { return { o: V(q[0] - com.x, q[1] - com.y, q[2] - com.z), r: q[3] }; }), I = 0, br = 0;
+  sph.forEach(function (s, i) { var m = T_.mass * spheres[i][3] * spheres[i][3] * spheres[i][3] / wsum; I += m * (s.o.lengthSq() + 0.4 * s.r * s.r); br = Math.max(br, s.o.length() + s.r); });
+  var mesh;
+  if (o.type === 'boombox') { mesh = boomboxMesh(M); mesh.children.forEach(function (c) { c.position.sub(com); }); }
+  else {
+    if (o.type !== 'ball' && o.type !== 'bag') geo = geo.clone();
+    geo.translate(-com.x, -com.y, -com.z);
+    mesh = new T.Mesh(geo, mat);
+  }
+  scene.add(mesh);
+  var P = { type: o.type, green: green, T: T_, mesh: mesh, sph: sph, im: 1 / T_.mass, iI: 1 / Math.max(I, 1e-5), br: br, com: com,
+    home: { p: V(0, 0, 0), q: new T.Quaternion() }, p: V(0, 0, 0), q: new T.Quaternion(), sleepP: V(0, 0, 0), sleepQ: new T.Quaternion(), v: V(0, 0, 0), w: V(0, 0, 0),
+    asleep: true, still: 0, held: null, broken: false, brokeAt: 0, baseY: o.y || 0, groundY: o.y || 0, onGround: true, away: 0, sndAt: 0, prev: V(0, 0, 0), prevQ: new T.Quaternion(), vh: [V(0, 0, 0), V(0, 0, 0), V(0, 0, 0), V(0, 0, 0), V(0, 0, 0), V(0, 0, 0)], vhi: 0 };
+  /* where it starts: standing, or lying on its side pointing along lie */
+  if (o.lie !== undefined && o.type !== 'ball' && o.type !== 'bag') {
+    P.home.q.setFromEuler(new T.Euler(Math.PI / 2, o.lie, 0, 'YXZ'));
+    P.home.p.set(o.x, (o.y || 0) + (o.type === 'bottle' ? 0.031 : 0.032), o.z).add(PV.copy(com).applyQuaternion(P.home.q));
+  } else {
+    P.home.q.setFromAxisAngle(YAX, o.yaw !== undefined ? o.yaw : hash2(o.x, o.z, 9) * 6.28);
+    P.home.p.set(o.x, (o.y || 0) + com.y, o.z);
+  }
+  propReset(P);
+  PROPS.list.push(P);
+  return P;
+}
+function propReset(P) {
+  P.p.copy(P.home.p); P.q.copy(P.home.q); P.v.set(0, 0, 0); P.w.set(0, 0, 0); P.asleep = true; P.still = 0; P.broken = false; P.away = 0; P.held = null;
+  P.mesh.visible = true; P.groundY = P.baseY; P.onGround = true;
+  propDraw(P);
+}
+function propDraw(P) { P.mesh.position.copy(P.p); P.mesh.quaternion.copy(P.q); }
+function propsSetup() {
+  if (PROPS.ready) return;
+  propTextures();
+  PROPS.specs.forEach(propMake);
+  CANS.forEach(function (c) { propMake({ type: 'can', x: c[0], y: c[1], z: c[2], lie: c[3] }); });
+  /* soft shadows under them, all in one draw */
+  var sm = new T.MeshBasicMaterial({ map: TEX.softBlob, transparent: true, depthWrite: false, opacity: 0.9, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  var sg = new T.PlaneGeometry(1, 1); sg.rotateX(-Math.PI / 2);
+  PROPS.shadows = new T.InstancedMesh(sg, sm, PROPS.list.length); PROPS.shadows.renderOrder = 1; PROPS.shadows.frustumCulled = false; scene.add(PROPS.shadows);
+  /* glass shards, all in one draw */
+  PROPS.shards = new T.InstancedMesh(new T.BoxGeometry(1, 1, 1), new T.MeshBasicMaterial({ color: 0xffffff }), 64); PROPS.shards.frustumCulled = false; scene.add(PROPS.shards);
+  for (var i = 0; i < 64; i++) { PROPS.shardList.push({ p: V(0, -50, 0), v: V(0, 0, 0), s: V(0, 0, 0), r: new T.Euler(), life: 0, rest: false }); PROPS.shards.setColorAt(i, new T.Color(0x3b220f)); }
+  PROPS.list.forEach(function (P, i) { shadowAt(P, i); });
+  PROPS.shadows.instanceMatrix.needsUpdate = true; propsShardDraw();
+  callSetup(); boomLoad();
+  PROPS.ready = true;
+}
+function shadowAt(P, i) {
+  var lift = P.p.y - P.groundY, s = P.broken || P.held || lift > 0.9 ? 0 : P.br * 2.6 * Math.max(0.3, 1 - lift * 0.8);
+  PM.makeTranslation(P.p.x, P.groundY + 0.006, P.p.z); PS.set(s, 1, s); PM.scale(PS);
+  PROPS.shadows.setMatrixAt(i, PM);
+}
+
+/* ---------------- moving them ---------------- */
+function propWake(P) { P.asleep = false; P.still = 0; P.sleepP.copy(P.p); P.sleepQ.copy(P.q); }
+function propContact(P, h, impactOut) {                  /* the spheres against the street: push out, bounce, rub */
+  var hit = false;
+  P.onGround = false;
+  for (var i = 0; i < P.sph.length; i++) {
+    var s = P.sph[i];
+    PO.copy(s.o).applyQuaternion(P.q); PC.copy(P.p).add(PO);
+    var q = nearest(PC.x, PC.y, PC.z, s.r);
+    if (!q.hit) continue;
+    hit = true; PN.set(q.nx, q.ny, q.nz);
+    var depth = s.r - q.d; P.p.addScaledVector(PN, depth + 0.0003);
+    if (q.ny > 0.5) { P.onGround = true; P.groundY = PC.y - s.r + depth; }
+    PRC.copy(PO).addScaledVector(PN, -s.r);
+    PVC.crossVectors(P.w, PRC).add(P.v);
+    var vn = PVC.dot(PN);
+    if (vn < 0) {
+      PRX.crossVectors(PRC, PN);
+      var e = -vn < 0.6 ? 0 : P.T.e, jn = -(1 + e) * vn / (P.im + P.iI * PRX.lengthSq());
+      P.v.addScaledVector(PN, jn * P.im); P.w.addScaledVector(PRX, jn * P.iI);
+      PVC.crossVectors(P.w, PRC).add(P.v); var vn2 = PVC.dot(PN); PVT.copy(PVC).addScaledVector(PN, -vn2); var vt = PVT.length();
+      if (vt > 1e-5) { PVT.multiplyScalar(1 / vt); PRX.crossVectors(PRC, PVT); var jt = Math.min(P.T.mu * jn, vt / (P.im + P.iI * PRX.lengthSq())); P.v.addScaledVector(PVT, -jt * P.im); P.w.addScaledVector(PRX, -jt * P.iI); }
+      if (-vn > impactOut.speed) { impactOut.speed = -vn; impactOut.kind = q.kind; impactOut.x = PC.x; impactOut.y = PC.y - s.r; impactOut.z = PC.z; }
+    }
+  }
+  return hit;
+}
+var IMPACT = { speed: 0, kind: 0, x: 0, y: 0, z: 0 };
+function propStep(P, dt) {
+  var sp = P.v.length(), n = Math.min(8, Math.max(1, Math.ceil(sp * dt / (0.4 * P.sph[P.sph.length - 1].r + 0.01)))), h = dt / n;
+  IMPACT.speed = 0;
+  for (var k = 0; k < n; k++) {
+    P.v.y -= G * h;
+    P.p.addScaledVector(P.v, h);
+    var wl = P.w.length();
+    if (wl > 1e-6) { PQ.setFromAxisAngle(PV.copy(P.w).multiplyScalar(1 / wl), wl * h); P.q.premultiply(PQ).normalize(); }
+    propContact(P, h, IMPACT);
+  }
+  var damp = P.onGround ? (P.T.roll ? 0.4 : 2.2) : 0.05;   /* air barely slows things; the ground settles them */
+  P.v.multiplyScalar(Math.exp(-damp * dt * (P.onGround && sp < 0.4 ? 3 : 1))); P.w.multiplyScalar(Math.exp(-(P.onGround ? (P.T.roll ? 0.6 : 2.5) : 0.3) * dt));
+  if (IMPACT.speed > 0.4) propHit(P, IMPACT.speed, IMPACT.kind, IMPACT);
+  if (P.p.distanceToSquared(P.sleepP) < 1e-4 && 1 - Math.abs(P.q.dot(P.sleepQ)) < 1e-3) { P.still += dt; if (P.still > 0.6) { P.asleep = true; P.v.set(0, 0, 0); P.w.set(0, 0, 0); } }
+  else { P.sleepP.copy(P.p); P.sleepQ.copy(P.q); P.still = 0; }
+}
+function propHit(P, speed, kind, at) {                    /* a knock: a sound, and glass that hits hard enough smashes */
+  if (PROPS.settling) return;
+  if (P.type === 'bottle' && speed > P.T.breaks) { smash(P, at); return; }
+  if (PROPS.time - P.sndAt > 0.06) { P.sndAt = PROPS.time; sfx(P.T.snd, speed, P.p); }
+}
+function smash(P, at) {
+  P.broken = true; P.brokeAt = PROPS.time; P.mesh.visible = false; P.asleep = true; P.held = null;
+  XRG.hands.forEach(function (h) { if (h.held === P) h.held = null; });
+  var cols = P.green ? [0x3f7a4c, 0x2a5236, 0x5d9a68] : [0x7a3f16, 0x4e2810, 0x9a5a26], made = 0;      /* glass catching the light: brighter than the bottle looked whole */
+  for (var i = 0; i < PROPS.shardList.length && made < 16; i++) {
+    var s = PROPS.shardList[i]; if (s.life > 0) continue;
+    s.p.set(at.x + (Math.random() - 0.5) * 0.06, Math.max(at.y, P.p.y - 0.05) + 0.02, at.z + (Math.random() - 0.5) * 0.06);
+    var a = Math.random() * 6.283, out = 0.6 + Math.random() * 1.6;
+    s.v.set(Math.cos(a) * out + P.v.x * 0.3, 0.8 + Math.random() * 1.6, Math.sin(a) * out + P.v.z * 0.3);
+    var big = made < 4;                                   /* a few big curved pieces, the rest small */
+    s.s.set((big ? 0.035 : 0.012) + Math.random() * (big ? 0.03 : 0.022), 0.004, (big ? 0.03 : 0.01) + Math.random() * (big ? 0.03 : 0.02)); s.r.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
+    s.life = 10 + Math.random() * 4; s.rest = false; PROPS.shards.setColorAt(i, new T.Color(made % 7 === 6 ? 0xd6d0bd : cols[made % 3])); made++;
+  }
+  PROPS.shards.instanceColor.needsUpdate = true;
+  sfx('smash', 6, P.p);
+}
+function propsShardDraw() {
+  var E = PROPS.shards;
+  PROPS.shardList.forEach(function (s, i) {
+    if (s.life <= 0) { PM.makeScale(0, 0, 0); E.setMatrixAt(i, PM); return; }
+    var f = Math.min(1, s.life / 2);                     /* the last two seconds, they shrink away */
+    PM.makeRotationFromEuler(s.r); PS.copy(s.s).multiplyScalar(f); PM.scale(PS); PM.setPosition(s.p);
+    E.setMatrixAt(i, PM);
+  });
+  E.instanceMatrix.needsUpdate = true;
+}
+function propsShards(dt) {
+  var any = false;
+  PROPS.shardList.forEach(function (s) {
+    if (s.life <= 0) return;
+    any = true; s.life -= dt;
+    if (s.rest) return;
+    s.r.x += dt * 9; s.r.z += dt * 7;
+    var n = Math.min(8, Math.ceil(s.v.length() * dt / 0.004) || 1), h = dt / n;      /* small steps, so a quick piece cannot slip through the ground */
+    for (var k = 0; k < n && !s.rest; k++) {
+      s.v.y -= G * h; s.p.addScaledVector(s.v, h);
+      var q = nearest(s.p.x, s.p.y, s.p.z, 0.006);
+      if (q.hit) { s.p.x += q.nx * (0.006 - q.d); s.p.y += q.ny * (0.006 - q.d); s.p.z += q.nz * (0.006 - q.d); var vn = s.v.x * q.nx + s.v.y * q.ny + s.v.z * q.nz; if (vn < 0) { s.v.x -= 1.3 * vn * q.nx; s.v.y -= 1.3 * vn * q.ny; s.v.z -= 1.3 * vn * q.nz; s.v.multiplyScalar(0.45); } if (s.v.length() < 0.15 && q.ny > 0.5) { s.rest = true; s.r.set(0, s.r.y, 0); } }
+    }
+    if (s.p.y < -5) s.life = 0;
+  });
+  if (any || PROPS.shardsWere) propsShardDraw();
+  PROPS.shardsWere = any;
+}
+/* hands and the body push things; a closed fist holds them */
+var HV = [V(0, 0, 0), V(0, 0, 0)], HPREV = [V(0, 0, 0), V(0, 0, 0)], BODYV = V(0, 0, 0), BODYP = V(0, 0, 0);
+function pushProp(P, cx, cy, cz, cr, vx, vy, vz, hand) {      /* a sphere moving at v shoves the thing out of its way */
+  if (P.held || P.broken || (hand && P.noPush > PROPS.time)) return false;
+  var dx = P.p.x - cx, dy = P.p.y - cy, dz = P.p.z - cz;
+  if (dx * dx + dy * dy + dz * dz > (P.br + cr) * (P.br + cr)) return false;
+  if (vx * vx + vy * vy + vz * vz < 0.45 * 0.45) return false;      /* a slow hand passes through, so you can close your fist round a thing */
+  var touched = false, resting = P.asleep || P.onGround;
+  for (var i = 0; i < P.sph.length; i++) {
+    var s = P.sph[i]; PO.copy(s.o).applyQuaternion(P.q); PC.copy(P.p).add(PO);
+    PN.set(PC.x - cx, PC.y - cy, PC.z - cz); var d = PN.length(), R = s.r + cr;
+    if (d >= R) continue;
+    if (d < 1e-5) PN.set(0, 1, 0); else PN.multiplyScalar(1 / d);
+    if (resting && PN.y < 0) {                           /* never pushed down into what it stands on: sideways instead */
+      PN.y = 0; var hl = Math.hypot(PN.x, PN.z); if (hl < 0.25) continue; PN.x /= hl; PN.z /= hl;
+    }
+    if (P.asleep) propWake(P);
+    P.p.addScaledVector(PN, Math.min(R - d, 0.5 * s.r + 0.005));
+    PRC.copy(PO).addScaledVector(PN, -s.r);
+    PVC.crossVectors(P.w, PRC).add(P.v); PVC.x -= vx; PVC.y -= vy; PVC.z -= vz;
+    var vn = PVC.dot(PN);
+    if (vn < 0) {
+      PRX.crossVectors(PRC, PN); var jn = -1.25 * vn / (P.im + P.iI * PRX.lengthSq());
+      P.v.addScaledVector(PN, jn * P.im); P.w.addScaledVector(PRX, jn * P.iI);
+      if (hand && -vn > 0.8) { if (P.type === 'bottle' && -vn > 7) { smash(P, { x: PC.x, y: PC.y, z: PC.z }); return true; } if (PROPS.time - P.sndAt > 0.08) { P.sndAt = PROPS.time; sfx(P.T.snd, -vn * 0.7, P.p); } }
+    }
+    touched = true;
+  }
+  return touched;
+}
+function fistOf(h) { return button(h, 1) > 0.6 && button(h, 0) > 0.6; }
+function propsHands(dt) {
+  var D = XRG.D, rh = D.rHand * 1.05;
+  XRG.hands.forEach(function (h, i) {
+    if (!h.tracked) { if (h.held) letGo(h, i); h.seen2 = false; return; }
+    if (!h.seen2) { HPREV[i].copy(h.last); h.seen2 = true; }
+    HV[i].subVectors(h.last, HPREV[i]).multiplyScalar(1 / Math.max(dt, 1e-3)); HPREV[i].copy(h.last);
+    var fist = fistOf(h), open = button(h, 1) < 0.35 || button(h, 0) < 0.35;
+    if (h.held) { if (open) letGo(h, i); else carry(h, dt); }
+    else if (fist && !h.fistWas) {                       /* reach for the nearest thing within a hand's width */
+      var best = null, bd = 1e9;
+      PROPS.list.forEach(function (P) {
+        if (P.broken || P.held) return;
+        for (var k = 0; k < P.sph.length; k++) { PO.copy(P.sph[k].o).applyQuaternion(P.q).add(P.p); var d = PO.distanceTo(h.last) - P.sph[k].r; if (d < rh + 0.07 && d < bd) { bd = d; best = P; } }
+      });
+      if (best) hold(h, best);
+    }
+    h.fistWas = fist;
+    if (!h.held) { callHand(h, i); boomHand(h, i); }
+    if (!h.held) PROPS.list.forEach(function (P) { pushProp(P, h.last.x, h.last.y, h.last.z, rh, HV[i].x, HV[i].y, HV[i].z, true); });
+    if (!PROPS.hint && !h.held) {                         /* the first time a hand comes near something you can pick up, say how */
+      for (var k = 0; k < PROPS.list.length; k++) { var P = PROPS.list[k]; if (!P.broken && P.p.distanceTo(h.last) < P.br + 0.25) { PROPS.hint = true; toast('Close your fist to grab', 3); break; } }
+    }
+  });
+  /* the body and head shove things too */
+  toWorld(XRG.headLocal, HW);
+  BODYV.subVectors(XRG.pos, BODYP).multiplyScalar(1 / Math.max(dt, 1e-3)); BODYP.copy(XRG.pos);
+  PROPS.list.forEach(function (P) {
+    pushProp(P, HW.x, HW.y, HW.z, D.rHead, BODYV.x, BODYV.y, BODYV.z, false);
+    pushProp(P, HW.x, HW.y - D.drop, HW.z, D.rBody, BODYV.x, BODYV.y, BODYV.z, false);
+  });
+}
+function hold(h, P) {
+  h.held = P; P.held = h; propWake(P); P.v.set(0, 0, 0); P.w.set(0, 0, 0);
+  PQ.copy(h.wq).invert();
+  h.relP = PV.copy(P.p).sub(h.last).applyQuaternion(PQ).clone(); h.relQ = PQ.clone().multiply(P.q);
+  P.vh.forEach(function (v) { v.set(0, 0, 0); }); P.prev.copy(P.p); P.prevQ.copy(P.q);
+  buzz(h, 0.25);
+}
+function carry(h, dt) {
+  var P = h.held;
+  P.prev.copy(P.p); P.prevQ.copy(P.q);
+  P.p.copy(h.relP).applyQuaternion(h.wq).add(h.last); P.q.copy(h.wq).multiply(h.relQ);
+  P.vh[P.vhi].subVectors(P.p, P.prev).multiplyScalar(1 / Math.max(dt, 1e-3)); P.vhi = (P.vhi + 1) % P.vh.length;
+  PQ2.copy(P.prevQ).invert(); PQ.copy(P.q).multiply(PQ2);                    /* how it turned this frame */
+  var ang = 2 * Math.acos(Math.min(1, Math.abs(PQ.w))), sa = Math.sqrt(Math.max(1e-9, 1 - PQ.w * PQ.w));
+  P.w.set(PQ.x / sa, PQ.y / sa, PQ.z / sa).multiplyScalar((PQ.w < 0 ? -ang : ang) / Math.max(dt, 1e-3));
+  if (!isFinite(P.w.x)) P.w.set(0, 0, 0);
+  propDraw(P);
+}
+function letGo(h, i) {                                   /* a throw: the hand at its fastest in the last few frames, with the frames either side */
+  var P = h.held; h.held = null; if (!P) return;
+  var n = P.vh.length, newest = (P.vhi - 1 + n) % n, top = 0, best = -1, a, cnt = 0;
+  for (a = 0; a < n; a++) { var s2 = P.vh[(newest - a + n) % n].lengthSq(); if (s2 > best) { best = s2; top = a; } }      /* a: how many frames ago */
+  P.held = null; P.v.set(0, 0, 0);
+  for (a = Math.max(0, top - 1); a <= Math.min(n - 1, top + 1); a++) { P.v.add(P.vh[(newest - a + n) % n]); cnt++; }
+  P.v.multiplyScalar(1.1 / cnt);
+  if (P.w.length() > 25) P.w.setLength(25);
+  propWake(P);
+}
+function propsStep(dt) {
+  if (!PROPS.ready || !XRG.col) return;
+  PROPS.time += dt;
+  propsHands(dt);
+  var anyMoved = false;
+  PROPS.list.forEach(function (P, i) {
+    if (P.broken) {                                      /* a smashed bottle comes back once nobody is standing on its spot */
+      if (PROPS.time - P.brokeAt > 30) { toWorld(XRG.headLocal, HW); if (HW.distanceTo(P.home.p) > 2) { propReset(P); shadowAt(P, i); anyMoved = true; } }
+      return;
+    }
+    if (P.held) { shadowAt(P, i); anyMoved = true; return; }
+    if (!P.asleep) {
+      propStep(P, dt);
+      if (P.type === 'ball') hoopCheck(P);
+      if (P.p.y < -3) { propReset(P); }
+      propDraw(P); shadowAt(P, i); anyMoved = true;
+      /* things resting on a thing that really moves wake up too (a tremble does not count) */
+      if (P.v.lengthSq() > 0.02 || P.w.lengthSq() > 1) PROPS.list.forEach(function (Q) { if (Q.asleep && !Q.broken && Q !== P && Q.p.distanceTo(P.p) < Q.br + P.br) propWake(Q); });
+      propsPair(P);
+    } else if (P.p.distanceToSquared(P.home.p) > 1) {    /* left lying far from home a long while, with nobody near: it goes back */
+      P.away += dt; toWorld(XRG.headLocal, HW);
+      if (P.away > 120 && HW.distanceTo(P.p) > 6 && HW.distanceTo(P.home.p) > 6) { propReset(P); shadowAt(P, i); anyMoved = true; }
+    }
+  });
+  if (anyMoved) PROPS.shadows.instanceMatrix.needsUpdate = true;
+  propsShards(dt); callStep(); boomStep();
+}
+function propsPair(P) {                                  /* two things bumping: push apart, share the knock */
+  PROPS.list.forEach(function (Q) {
+    if (Q === P || Q.broken || Q.held) return;
+    if (P.p.distanceTo(Q.p) > P.br + Q.br) return;
+    for (var i = 0; i < P.sph.length; i++) for (var j = 0; j < Q.sph.length; j++) {
+      var a = P.sph[i], b = Q.sph[j];
+      PO.copy(a.o).applyQuaternion(P.q).add(P.p); PC.copy(b.o).applyQuaternion(Q.q).add(Q.p);
+      PN.subVectors(PO, PC); var d = PN.length(), R = a.r + b.r;
+      if (d >= R || d < 1e-6) continue;
+      PN.multiplyScalar(1 / d); var depth = R - d;
+      var vn = (P.v.x - Q.v.x) * PN.x + (P.v.y - Q.v.y) * PN.y + (P.v.z - Q.v.z) * PN.z, still = Q.asleep;
+      if (still && (depth > 0.004 || vn < -0.15)) { propWake(Q); still = false; }      /* a light touch leaves a sleeping thing be: it holds like the street does */
+      var wa = still ? 1 : P.im / (P.im + Q.im), qm = still ? 0 : Q.im;
+      P.p.addScaledVector(PN, depth * wa); if (!still) Q.p.addScaledVector(PN, -depth * (1 - wa));
+      if (vn < 0) { var j_ = -1.2 * vn / (P.im + qm); P.v.addScaledVector(PN, j_ * P.im); if (!still) Q.v.addScaledVector(PN, -j_ * Q.im); if (-vn > 1.2) propHit(P, -vn * 0.6, 4, { x: PO.x, y: PO.y, z: PO.z }); }
+    }
+  });
+}
+/* once, before anyone plays: let everything find its feet where the street left it, and call that home */
+function propsSettle() {
+  if (PROPS.settled || !PROPS.ready || !XRG.col) return;
+  PROPS.settling = true;
+  try {
+    PROPS.list.forEach(function (P) { propReset(P); propWake(P); });
+    for (var f = 0; f < 72 * 4; f++) PROPS.list.forEach(function (P) { if (!P.asleep) { propStep(P, 1 / 72); propsPair(P); if (P.p.y < -3) propReset(P); } });
+    PROPS.list.forEach(function (P, i) { P.home.p.copy(P.p); P.home.q.copy(P.q); P.baseY = P.groundY; P.v.set(0, 0, 0); P.w.set(0, 0, 0); P.asleep = true; propDraw(P); shadowAt(P, i); });
+    PROPS.shadows.instanceMatrix.needsUpdate = true;
+  } finally { PROPS.settling = false; PROPS.settled = true; }
+}
+/* the hoop: a ball dropping down through the rim scores */
+var RIM = { x: 38.77, y: 3.05, z: 29, r: 0.21 };
+function hoopCheck(P) {
+  var dx = P.p.x - RIM.x, dz = P.p.z - RIM.z;
+  if (P.prev.y > RIM.y && P.p.y <= RIM.y && P.v.y < 0 && dx * dx + dz * dz < RIM.r * RIM.r) { PROPS.score++; sfx('swish', 3, P.p); toast(PROPS.score === 1 ? 'Bucket' : 'Bucket · ' + PROPS.score + ' in', 2); }
+  P.prev.copy(P.p);
+}
+
+/* ---------------- what they sound like ---------------- */
+var SFX = {
+  glass: [{ type: 'bandpass', f: 3400, q: 9, len: 0.09, vol: 0.32 }], can: [{ type: 'bandpass', f: 2300, q: 14, len: 0.16, vol: 0.3 }, { type: 'bandpass', f: 5200, q: 10, len: 0.06, vol: 0.12 }],
+  ball: [{ type: 'lowpass', f: 230, q: 3, len: 0.14, vol: 0.7 }, { type: 'bandpass', f: 520, q: 4, len: 0.05, vol: 0.18 }], bag: [{ type: 'lowpass', f: 150, q: 0.6, len: 0.16, vol: 0.5 }, { type: 'highpass', f: 3200, q: 0.5, len: 0.12, vol: 0.08 }],
+  smash: [{ type: 'highpass', f: 1800, q: 0.7, len: 0.38, vol: 0.55 }, { type: 'bandpass', f: 4300, q: 6, len: 0.2, vol: 0.3, at: 0.05 }, { type: 'bandpass', f: 6100, q: 8, len: 0.15, vol: 0.22, at: 0.12 }, { type: 'bandpass', f: 5000, q: 9, len: 0.12, vol: 0.18, at: 0.22 }, { type: 'bandpass', f: 7000, q: 9, len: 0.1, vol: 0.12, at: 0.31 }],
+  swish: [{ type: 'bandpass', f: 1500, q: 0.8, len: 0.35, vol: 0.35 }],
+  click: [{ type: 'bandpass', f: 2600, q: 3, len: 0.035, vol: 0.5 }, { type: 'lowpass', f: 300, q: 1, len: 0.04, vol: 0.3 }],
+  boom: [{ type: 'lowpass', f: 420, q: 1.2, len: 0.12, vol: 0.55 }, { type: 'bandpass', f: 1300, q: 3, len: 0.05, vol: 0.18 }],
+  radio: [{ type: 'bandpass', f: 1700, q: 0.6, len: 1.4, vol: 0.2 }, { type: 'highpass', f: 4200, q: 0.5, len: 1.2, vol: 0.08 }, { type: 'bandpass', f: 900, q: 2, len: 0.08, vol: 0.2, at: 0.3 }, { type: 'bandpass', f: 900, q: 2, len: 0.06, vol: 0.18, at: 0.75 }]
+};
+var SV = V(0, 0, 0), HEAR = { fall: 1, pan: 0 };
+function hear(at) {                                       /* how loud a thing at 'at' is from here, and how far to the left or right */
+  toWorld(XRG.headLocal, HW); SV.subVectors(at, HW); var d = SV.length();
+  YQ.setFromAxisAngle(YAX, XRG.yaw); MQ.copy(YQ).multiply(XRG.headQ); FWD.set(0, 0, -1).applyQuaternion(MQ);
+  HEAR.fall = 1 / (1 + d * d / 6); HEAR.pan = d > 0.01 ? Math.max(-0.8, Math.min(0.8, (SV.x * -FWD.z + SV.z * FWD.x) / d)) : 0;
+  return HEAR;
+}
+function sfx(name, strength, at) {
+  if (!SND || !SFX[name]) return;
+  try {
+    var c = SND.ctx, t0 = c.currentTime, hr = hear(at), fall = hr.fall, pan = hr.pan;
+    SFX[name].forEach(function (o) {
+      var t = t0 + (o.at || 0), v = o.vol * Math.min(1.2, 0.15 + strength / 4) * fall;
+      if (v < 0.004) return;
+      var s = c.createBufferSource(); s.buffer = SND.noise; s.playbackRate.value = 0.85 + Math.random() * 0.3;
+      var f = c.createBiquadFilter(); f.type = o.type; f.frequency.value = o.f * (0.9 + Math.random() * 0.2); f.Q.value = o.q;
+      var g = c.createGain(); g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0006, t + o.len);
+      s.connect(f); f.connect(g);
+      if (c.createStereoPanner) { var p = c.createStereoPanner(); p.pan.value = pan; g.connect(p); p.connect(c.destination); } else g.connect(c.destination);
+      s.start(t); s.stop(t + o.len + 0.03);
+    });
+  } catch (e) {}
+}
+
+function chime(at, delay) {                               /* the elevator's bell: one struck tone, ringing out */
+  if (!SND) return;
+  try {
+    var c = SND.ctx, t = c.currentTime + (delay || 0), hr = hear(at);
+    [[1318.5, 0.2, 1.8], [2637, 0.05, 0.8], [3960, 0.02, 0.45], [659.3, 0.04, 1.2]].forEach(function (o) {
+      var os = c.createOscillator(), g = c.createGain(); os.type = 'sine'; os.frequency.value = o[0];
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(o[1] * (0.3 + hr.fall), t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + o[2]);
+      os.connect(g);
+      if (c.createStereoPanner) { var p = c.createStereoPanner(); p.pan.value = hr.pan; g.connect(p); p.connect(c.destination); } else g.connect(c.destination);
+      os.start(t); os.stop(t + o[2] + 0.05);
+    });
+  } catch (e) {}
+}
+
+/* ---------------- the elevator's call button: press it and it lights, and rings ---------------- */
+var CALL = { p: V(-2.0, 1.05, 0.054), r: 0.026, face: null, mat: null, lit: 0, down: [false, false], said: 0 };
+function callSetup() {
+  var c = document.createElement('canvas'); c.width = c.height = 64; var g = c.getContext('2d');
+  g.fillStyle = '#d9d2c0'; g.fillRect(0, 0, 64, 64); g.fillStyle = '#2a2622'; g.beginPath(); g.moveTo(19, 23); g.lineTo(45, 23); g.lineTo(32, 43); g.closePath(); g.fill();      /* an arrow, down: the club is below */
+  var t = smoothTex(new T.CanvasTexture(c)); t.userData = { w: 64, h: 64 };
+  useLights(NEAR_LIGHTS);
+  CALL.mat = roomMat({ tex: t, snap: false, gloss: 0.5, shine: 40 });
+  var side = roomMat({ color: 0xcfc8b6, snap: false, gloss: 0.4, shine: 30 }), ring = roomMat({ color: 0x9aa0a6, snap: false, gloss: 0.7, shine: 50 });
+  useLights(ARENA_LIGHTS);
+  var btn = new T.Group(); btn.position.copy(CALL.p);
+  var cyl = new T.Mesh(new T.CylinderGeometry(CALL.r, CALL.r, 0.012, 20, 1, true), side); cyl.rotation.x = Math.PI / 2; cyl.position.z = -0.006; btn.add(cyl);
+  CALL.face = new T.Mesh(new T.CircleGeometry(CALL.r, 20), CALL.mat); btn.add(CALL.face);
+  var rg = new T.Mesh(new T.TorusGeometry(CALL.r + 0.005, 0.0045, 6, 24), ring); rg.position.z = -0.008; btn.add(rg);
+  scene.add(btn); CALL.btn = btn;
+}
+function callHand(h, i) {
+  var d = h.last.distanceTo(CALL.p), r = XRG.D.rHand;
+  if (d < r + 0.03) { if (!CALL.down[i]) { CALL.down[i] = true; callPress(); } }
+  else if (d > r + 0.08) CALL.down[i] = false;
+}
+function callPress() {
+  sfx('click', 3, CALL.p);
+  if (PROPS.time < CALL.lit) return;                     /* already called */
+  CALL.lit = PROPS.time + 3.5; chime(CALL.p, 0.45);
+  if (PROPS.time - CALL.said > 8) { CALL.said = PROPS.time; toast('The elevator is out of order', 3, 'The fights downstairs come next'); }
+}
+function callStep() {
+  if (!CALL.mat) return;
+  var on = PROPS.time < CALL.lit, u = CALL.mat.uniforms;
+  u.uGlow.value = on ? 1.6 : 0; u.uColor.value.setHex(on ? 0xffb54a : 0xffffff);
+  CALL.face.position.z = on ? -0.004 : 0;                /* pushed in while it is lit */
+}
+
+/* ---------------- the boombox: carry it anywhere; press play on its top ---------------- */
+var BOOM = { P: null, list: null, el: null, node: null, gain: null, pan: null, on: false, idx: 0, at: -9, key: V(-0.1, 0.27, 0.05), KP: V(0, 0, 0) };
+function boomLoad() {                                     /* the beats live in the music folder, listed in music/list.json */
+  BOOM.P = PROPS.list.filter(function (P) { return P.type === 'boombox'; })[0] || null;
+  if (BOOM.P) BOOM.key.sub(BOOM.P.com);
+  try {
+    fetch('music/list.json', { cache: 'no-cache' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+      var l = j && (j.tracks || j); BOOM.list = (Array.isArray(l) ? l : []).map(function (t) { var f = typeof t === 'string' ? t : t.file; return f && f.indexOf('/') < 0 ? 'music/' + f : f; }).filter(Boolean);
+    }).catch(function () { BOOM.list = []; });
+  } catch (e) { BOOM.list = []; }
+}
+function boomHand(h, i) {
+  var P = BOOM.P; if (!P || P.held) return;
+  BOOM.KP.copy(BOOM.key).applyQuaternion(P.q).add(P.p);
+  if (h.last.distanceTo(BOOM.KP) < XRG.D.rHand + 0.06) P.noPush = PROPS.time + 0.3;      /* a hand on the keys plays it, it does not shove it */
+  if (h.last.distanceTo(BOOM.KP) < XRG.D.rHand + 0.025 && HV[i].y < -0.25 && PROPS.time - BOOM.at > 0.6) { BOOM.at = PROPS.time; boomToggle(); }      /* a press: the hand coming down on the key */
+}
+function boomName(f) { return decodeURIComponent(f.split('/').pop().replace(/\.[a-z0-9]+$/i, '')).replace(/[_-]+/g, ' '); }
+function boomToggle() {
+  if (!SND || !BOOM.P) return;
+  sfx('click', 3, BOOM.P.p);
+  if (BOOM.on) { boomOff(); return; }
+  if (!BOOM.list || !BOOM.list.length) { sfx('radio', 4, BOOM.P.p); toast('No beats on the boombox yet', 2.5); return; }
+  try {
+    var c = SND.ctx;
+    if (!BOOM.el) {
+      BOOM.el = new Audio(); BOOM.el.preload = 'auto';
+      BOOM.node = c.createMediaElementSource(BOOM.el); BOOM.gain = c.createGain(); BOOM.gain.gain.value = 0.9;
+      BOOM.pan = c.createPanner(); BOOM.pan.panningModel = 'HRTF'; BOOM.pan.distanceModel = 'inverse'; BOOM.pan.refDistance = 1.2; BOOM.pan.maxDistance = 60; BOOM.pan.rolloffFactor = 1.1;
+      BOOM.node.connect(BOOM.gain); BOOM.gain.connect(BOOM.pan); BOOM.pan.connect(c.destination);
+      BOOM.el.addEventListener('ended', function () { BOOM.idx = (BOOM.idx + 1) % BOOM.list.length; boomPlay(); });
+    }
+    boomPlay();
+  } catch (e) { BOOM.on = false; }
+}
+function boomPlay() {
+  var f = BOOM.list[BOOM.idx % BOOM.list.length];
+  BOOM.el.src = f; BOOM.on = true;
+  var go = BOOM.el.play(); if (go && go.catch) go.catch(function () { BOOM.on = false; toast('That beat would not play', 2.5); });
+  toast(boomName(f), 2.5);
+}
+function boomOff() { BOOM.on = false; if (BOOM.el) BOOM.el.pause(); }
+var LF_ = V(0, 0, 0), LU_ = V(0, 0, 0);
+function boomStep() {                                     /* the music comes from wherever the boombox is */
+  if (!BOOM.on || !BOOM.pan || !SND) return;
+  var c = SND.ctx, P = BOOM.P.p, L = c.listener, t = c.currentTime;
+  toWorld(XRG.headLocal, HW); YQ.setFromAxisAngle(YAX, XRG.yaw); MQ.copy(YQ).multiply(XRG.headQ); LF_.set(0, 0, -1).applyQuaternion(MQ); LU_.set(0, 1, 0).applyQuaternion(MQ);
+  if (BOOM.pan.positionX) { BOOM.pan.positionX.setTargetAtTime(P.x, t, 0.02); BOOM.pan.positionY.setTargetAtTime(P.y, t, 0.02); BOOM.pan.positionZ.setTargetAtTime(P.z, t, 0.02); } else BOOM.pan.setPosition(P.x, P.y, P.z);
+  if (L.positionX) { L.positionX.setTargetAtTime(HW.x, t, 0.02); L.positionY.setTargetAtTime(HW.y, t, 0.02); L.positionZ.setTargetAtTime(HW.z, t, 0.02); L.forwardX.setTargetAtTime(LF_.x, t, 0.02); L.forwardY.setTargetAtTime(LF_.y, t, 0.02); L.forwardZ.setTargetAtTime(LF_.z, t, 0.02); L.upX.setTargetAtTime(LU_.x, t, 0.02); L.upY.setTargetAtTime(LU_.y, t, 0.02); L.upZ.setTargetAtTime(LU_.z, t, 0.02); }
+  else { L.setPosition(HW.x, HW.y, HW.z); L.setOrientation(LF_.x, LF_.y, LF_.z, LU_.x, LU_.y, LU_.z); }
 }
 /* ================================================================== */
 /* The runner: gorillas, looking around, start-up. The page's own      */

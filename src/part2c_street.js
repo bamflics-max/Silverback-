@@ -283,6 +283,22 @@ function buildStreetTextures() {
     var t = smoothTex(new T.CanvasTexture(c)); t.userData = { w: 580, h: 490 }; return t;
   })();
   /* bills pasted on a wall, some half torn off */
+  TEX.meterF = canvasTex(128, 128, function (g, q, w, h) {      /* an electric meter's face under its glass: dial marks, the counter, the spinning disc's edge */
+    g.clearRect(0, 0, w, h); var c = w / 2;
+    g.fillStyle = '#9aa0a6'; g.beginPath(); g.arc(c, c, 62, 0, 7); g.fill();                   /* the steel rim */
+    g.fillStyle = '#e8e4da'; g.beginPath(); g.arc(c, c, 55, 0, 7); g.fill();
+    g.strokeStyle = '#2a2a2a'; g.lineWidth = 1.5; for (var k = 0; k < 5; k++) { var a = -2.4 + k * 1.2, ax = c - 26 + k * 13; g.beginPath(); g.arc(ax, 46, 5.5, 0, 7); g.stroke(); g.beginPath(); g.moveTo(ax, 46); g.lineTo(ax + Math.cos(a + k) * 4.5, 46 + Math.sin(a + k) * 4.5); g.stroke(); }
+    g.fillStyle = '#16181a'; g.fillRect(c - 24, 62, 48, 12); g.fillStyle = '#d9d5ca'; g.font = '600 10px "Urbanist", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('0 4 7 1 9', c, 68.5);
+    g.fillStyle = '#3a3d40'; g.fillRect(c - 30, 84, 60, 3); g.fillStyle = '#9e2a22'; g.fillRect(c - 4, 83, 8, 5);
+    g.fillStyle = '#2a2a2a'; g.font = '600 8px "Urbanist", sans-serif'; g.fillText('kWh', c, 97);
+    var gl = g.createRadialGradient(c - 18, c - 22, 2, c - 18, c - 22, 40); gl.addColorStop(0, 'rgba(255,255,255,0.55)'); gl.addColorStop(1, 'rgba(255,255,255,0)');      /* the glass catching the light */
+    g.fillStyle = gl; g.beginPath(); g.arc(c, c, 55, 0, 7); g.fill();
+  }, 917);
+  TEX.callL = canvasTex(256, 96, function (g, q, w, h) {      /* CALL, stamped into a plate */
+    g.clearRect(0, 0, w, h); g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '400 64px "Anton", sans-serif';
+    g.fillStyle = 'rgba(0,0,0,0.55)'; g.fillText('CALL', w / 2 + 2, h / 2 + 3); g.fillStyle = '#d6d2c6'; g.fillText('CALL', w / 2, h / 2);
+  }, 918);
+  TEX.couchF = plain(919, P_(['#2a2522', '#302a26', '#36302b', '#3c3530']), 64, 0.55, 0.16);      /* worn brown cloth: the fire does the warming */
   TEX.bill = [['#c9c2b0', '#141312', '#2f6bff', 851], ['#b7b1a1', '#141312', '#9e2f28', 852], ['#1a1a1c', '#d9d5ca', '#2f6bff', 853]].map(function (o) {
     var S = 300, W = Math.round(0.6 * S), H = Math.round(0.85 * S), c = document.createElement('canvas'), q = rand(o[3]), k, j; c.width = W; c.height = H;
     var g = c.getContext('2d'); g.fillStyle = o[0]; g.fillRect(0, 0, W, H);
@@ -511,6 +527,7 @@ function turned(key, c, prof, seg, rot) {
 function hash2(x, z, k) { var v = Math.sin(x * 12.9898 + z * 78.233 + (k || 0) * 37.719) * 43758.5453; return v - Math.floor(v); }      /* a steady random number for a place, so the same thing always looks the same */
 /* a full bin bag: sagging wide at the bottom, flat where it sits, pulled into creases, gathered and tied at the top */
 function bag(x, z, s, seed, key, y) {
+  if (typeof PROPS !== 'undefined' && PROPS.on && !PROPS.building) { PROPS.add('bag', { x: x, z: z, s: s, seed: seed, key: key, y: y || 0 }); return; }      /* loose, on the headset page */
   key = key || 'bagK'; y = y || 0;
   var q = rand(seed), ph = [q() * 6.28, q() * 6.28, q() * 6.28, q() * 6.28, q() * 6.28], nu = 20, nv = 12, yaw = q() * 6.28, ca = Math.cos(yaw), sa = Math.sin(yaw);
   var rx = 0.36 * s * (0.9 + q() * 0.25), rz = 0.33 * s * (0.9 + q() * 0.25), H = 0.46 * s * (0.9 + q() * 0.2), g = [], i, j, mid = V(x, y + H * 0.4, z);
@@ -561,6 +578,16 @@ function pallet(M) {                                     /* a wooden pallet: lie
   [-0.5, 0, 0.5].forEach(function (lx) { obox('woodS', M, lx, 0.07, 0, 0.1, 0.09, 1.0); });
   [-0.44, 0, 0.44].forEach(function (lz) { obox('woodS', M, 0, 0.011, lz, 1.2, 0.022, 0.1); });
 }
+function couch(x, z, ry, seed) {                         /* a worn three-seat couch, its back to a wall: x, z the middle of its front edge's foot, facing along ry */
+  var q = rand(seed), M = xf(x, 0, z, 0, ry, 0), W = 2.0, D = 0.86, i;
+  [[-0.92, -0.36], [0.92, -0.36], [-0.92, 0.36], [0.92, 0.36]].forEach(function (c) { obox('dark', M, c[0], 0.035, c[1], 0.07, 0.07, 0.07); });      /* stubby feet */
+  obox('couchF', M, 0, 0.2, 0, W, 0.26, D);                                                      /* the frame */
+  for (i = 0; i < 3; i++) obox('couchF', M.clone().multiply(xf((i - 1) * 0.6, 0.4, 0.07, (q() - 0.5) * 0.06, (q() - 0.5) * 0.06, (q() - 0.5) * 0.05)), 0, 0, 0, 0.58, 0.13, 0.64);      /* seat cushions, sat flat over the years */
+  obox('couchF', M.clone().multiply(xf(0, 0.33, -0.33, -0.18, 0, 0)), 0, 0.26, 0, W - 0.36, 0.56, 0.18);            /* the back, leaning a little */
+  for (i = 0; i < 3; i++) obox('couchF', M.clone().multiply(xf((i - 1) * 0.58, 0.47, -0.2, -0.3 + (q() - 0.5) * 0.1, (q() - 0.5) * 0.08, (q() - 0.5) * 0.06)), 0, 0.17, 0, 0.55, 0.36, 0.13);      /* back cushions, slumped */
+  [-1, 1].forEach(function (sd) { obox('couchF', M, sd * (W / 2 - 0.09), 0.32, 0, 0.18, 0.5, D); obox('couchF', M, sd * (W / 2 - 0.09), 0.58, 0.02, 0.22, 0.06, D + 0.02); });      /* the arms */
+  shadow(x - Math.sin(ry) * 0.05, z - Math.cos(ry) * 0.05, 0, 1.15, 0.6, ry);
+}
 function crate(c, s, ry) {                               /* a slatted wooden crate: posts at the corners, boards with gaps you can see into, a lid of boards */
   var M = xf(c.x, c.y, c.z, 0, ry || 0, 0), hs = s / 2, hb = s * 0.2, k;
   obox('dark', M, 0, hs, 0, s - 0.04, s - 0.03, s - 0.04);
@@ -595,6 +622,7 @@ function roadCone(x, z) {                                /* a road cone: a squar
 }
 /* a beer bottle with a paper label. y: what it stands on. lie: lying on its side, pointing that way round */
 function bottle(x, z, y, lie) {
+  if (typeof PROPS !== 'undefined' && PROPS.on && !PROPS.building) { PROPS.add('bottle', { x: x, z: z, y: y || 0, lie: lie }); return; }
   y = y || 0; var key = hash2(x, z, 3) < 0.6 ? 'glassBr' : 'glassB';
   if (lie === undefined) {
     turned(key, V(x, y, z), [[0.026, 0], [0.031, 0.006], [0.031, 0.125], [0.027, 0.15], [0.014, 0.185], [0.0125, 0.214], [0.0155, 0.217], [0.0155, 0.228], [0.0, 0.228]], 12, 0);
@@ -619,12 +647,12 @@ function conduit(x, nx, z0, z1, y, drops) {              /* cable pipes clipped 
     [y - 0.7, y - 1.7].forEach(function (yy) { if (yy > 0.3) box('galv', V(x + nx * 0.03, yy, z), 0.06, 0.035, 0.07, 0); });
   });
 }
-function meterBank(x, nx, z0, n, y) {                    /* electric meters on a wall that faces nx: a round glass on each box, a pipe up from each to a trunk, a breaker cabinet at the end */
+function meterBank(x, nx, z0, n, y, plates) {                    /* electric meters on a wall that faces nx: a round glass on each box, a pipe up from each to a trunk, a breaker cabinet at the end */
   for (var k = 0; k < n; k++) {
     var z = z0 + k * 0.36;
     box('galv', V(x + nx * 0.05, y, z), 0.1, 0.34, 0.24, 0);
-    rod('steelK', V(x + nx * 0.1, y + 0.03, z), V(x + nx * 0.135, y + 0.03, z), 0.1, 14, 'steelK'); rod('glassM', V(x + nx * 0.135, y + 0.03, z), V(x + nx * 0.165, y + 0.03, z), 0.088, 14, 'glassM');
-    box('steelK', V(x + nx * 0.166, y + 0.045, z), 0.003, 0.022, 0.07, 0);
+    rod('steelK', V(x + nx * 0.1, y + 0.03, z), V(x + nx * 0.14, y + 0.03, z), 0.1, 14, 'steelK');
+    if (plates) plates.push([TEX.meterF, 0.2, 0.2, V(x + nx * 0.1415, y + 0.03, z), V(nx, 0, 0)]);
     pipe('steelK', [V(x + nx * 0.05, y + 0.17, z), V(x + nx * 0.05, y + 0.62, z)], 0.017, 6);
   }
   var ze = z0 + (n - 1) * 0.36;
@@ -682,7 +710,10 @@ function nearZone(group, plates) {
   [1.02, 1.46].forEach(function (x) { pipe('steelG', [V(x, 0.05, 0.03), V(x, 2.68, 0.03)], 0.016, 6); });
   var panel = new T.Mesh(new T.BoxGeometry(1.3, 0.02, 0.8), new T.MeshBasicMaterial({ color: 0xfff0d6 })); panel.position.set(0, 2.68, -1.6); group.add(panel); L0.bulb = panel;
   lampHalo(group, V(0, 2.5, -0.9), 2.2, L0, 0xffe2b8);
-  box('steelK', V(-2.0, 1.3, 0.05), 0.2, 0.3, 0.08, 0); box('callB', V(-2.0, 1.34, 0.095), 0.06, 0.06, 0.012, 0);        /* the call button */
+  box('steelG', V(-2.0, 1.1, 0.022), 0.15, 0.28, 0.044, 0); box('steelK', V(-2.0, 1.1, 0.045), 0.124, 0.25, 0.004, 0);      /* the call station: a galvanized box, a dark face, one round button */
+  [[-0.05, 0.11], [0.05, 0.11], [-0.05, -0.11], [0.05, -0.11]].forEach(function (c) { box('steelG', V(-2.0 + c[0], 1.1 + c[1], 0.048), 0.012, 0.012, 0.004, 0); });
+  pipe('steelK', [V(-2.0, 1.24, 0.024), V(-2.0, 3.44, 0.024)], 0.011, 6); box('steelG', V(-2.0, 3.0, 0.024), 0.05, 0.03, 0.05, 0);      /* its wires, in a conduit up to the ledge */
+  plates.push([TEX.callL, 0.09, 0.034, V(-2.0, 1.175, 0.048), V(0, 0, 1)]);
   /* the name, sprayed across the brick over the door, two old lamps bent over it and a blue tube under it */
   plates.push([TEX.logoS, 6.0, 2.3, V(0, 4.77, 0.03), V(0, 0, 1)]);
   [-1.7, 1.7].forEach(function (x) {
@@ -737,7 +768,7 @@ function nearZone(group, plates) {
   box('doorG', V(ax - 0.04, 1.05, 3.4), 0.08, 2.1, 0.95, 0); box('conc', V(ax - 0.06, 2.2, 3.4), 0.14, 0.14, 1.2, 0); box('steelG', V(ax - 0.1, 1.0, 3.05), 0.03, 0.12, 0.04, 0);
 
   /* on the walls: meters and their pipes, a duct, downpipes, air units, paint */
-  meterBank(-ax, 1, 1.3, 4, 1.45);
+  meterBank(-ax, 1, 1.3, 4, 1.45, plates);
   for (i = 0; i < 9; i++) { box('galv', V(ax - 0.16, 1.5 + i * 1.2, 7.2), 0.32, 1.2, 0.4, 0); box('steelK', V(ax - 0.16, 0.9 + i * 1.2, 7.2), 0.36, 0.04, 0.44, 0); }      /* a ventilation duct up the wall */
   box('galv', V(ax - 0.29, 0.69, 7.2), 0.58, 0.42, 0.4, 0); hang('grate', ax - 0.585, 0.69, 7.2, 0.32, 0.3, -1, 0, 0);
   pipe('steelK', [V(-ax + 0.1, 14, 7.2), V(-ax + 0.1, 0.35, 7.2), V(-ax + 0.3, 0.12, 7.2)], 0.06, 8);          /* downpipes */
@@ -815,6 +846,8 @@ function farZone(group, plates) {
     var fl = new T.Sprite(new T.SpriteMaterial({ map: glowTex(), color: f[0], blending: T.AdditiveBlending, depthWrite: false, transparent: true, opacity: f[4] })); fl.position.set(bp.x, f[3], bp.z); fl.scale.set(f[1], f[2], 1); fl.renderOrder = 3; group.add(fl);
   });
   shadow(bp.x, bp.z, 0, 0.45); decal('poolF', V(bp.x, 0.011, bp.z), 4.4, 4.4, 0);
+  couch(ax - 0.47, 20.6, -Math.PI / 2, 4);              /* an old couch against the wall, facing the fire: somewhere to hang out */
+  if (typeof PROPS !== 'undefined' && PROPS.on) PROPS.add('boombox', { x: ax - 0.45, z: 22.6, y: 0.95, yaw: -Math.PI / 2 - 0.35 });      /* on the drum, facing the couch and the fire */
   /* more left about: drums, boxes, a pallet, tires */
   drum(ax - 0.45, 22.6, 'drumB'); drum(ax - 1.1, 23.0, 'drumK'); drum(ax - 0.5, 23.3, 'drumR');
   carton(ax - 0.5, 0, 18.3, 0.6, 0.2); carton(ax - 0.55, 0.46, 18.35, 0.5, -0.25); carton(ax - 1.15, 0, 18.6, 0.45, 0.8, true); carton(ax - 0.45, 0, 19.0, 0.4, 0.1);
@@ -854,7 +887,7 @@ function streetMats() {
     labelP: mat({ color: 0xb9b4a6, grime: 0.3 }), glassBr: mat({ color: 0x3a2412, gloss: 1.0, shine: 46, two: true }),
     woodS: mat({ tex: TEX.woodS, tile: 1.2, color: 0x7f848c, gloss: 0.1, two: true, grime: 0.45 }), boards: mat({ tex: TEX.woodS, color: 0x9a8a74, two: true, grime: 0.4 }), shutter: mat({ tex: TEX.shutter, tile: [0.8, 0.8], gloss: 0.3, shine: 26, two: true, grime: 0.55 }),
     winDark: mat({ tex: TEX.winDark, gloss: 0.9, shine: 60, two: true }), winLit: mat({ tex: TEX.winLit, glow: 0.5, two: true }), winLit2: mat({ tex: TEX.winLit2, glow: 0.42, two: true }),
-    dark: mat({ color: 0x050607, two: true }), doorG: mat({ tex: TEX.paintG, tile: 0.8, color: 0xa8b0a8, gloss: 0.25, grime: 0.55 }), hazardS: mat({ tex: TEX.hazardS, tile: 0.5, color: 0xbfbfbf, grime: 0.5 }), callB: mat({ color: 0x38c060, glow: 0.8 }),
+    dark: mat({ color: 0x050607, two: true }), doorG: mat({ tex: TEX.paintG, tile: 0.8, color: 0xa8b0a8, gloss: 0.25, grime: 0.55 }), hazardS: mat({ tex: TEX.hazardS, tile: 0.5, color: 0xbfbfbf, grime: 0.5 }), callB: mat({ color: 0x38c060, glow: 0.8 }), couchF: mat({ tex: TEX.couchF, tile: 0.5, gloss: 0.06, shine: 8, grime: 0.6 }),
     grate: mat({ tex: TEX.grate, tile: 0.2, two: true, gloss: 0.3 }), fenceS: mat({ tex: TEX.fence, tile: 0.56, two: true, cut: true }), rubberS: mat({ color: 0x141416, gloss: 0.15 }),
     bagK: mat({ tex: TEX.bagT, gloss: 0.1, shine: 7, two: true }), bagW: mat({ tex: TEX.bagT, color: 0xb9bdc6, gloss: 0.1, shine: 7, two: true }), card: mat({ tex: TEX.card, tile: 0.8, color: 0xa4a9b3, two: true, grime: 0.4 }), tape: mat({ color: 0x7c6f52 }),
     wire: mat({ color: 0x0c0c0e, two: true }), bulbE: mat({ color: 0xffd9a0, glow: 3.0, two: true }), glassM: mat({ color: 0x2a3440, gloss: 0.9, shine: 60, two: true }),
@@ -889,6 +922,7 @@ function buildStreet(world, step) {
   zone('alley, far half', FAR_LIGHTS, farZone);
   zone('street, near end', S1_LIGHTS, townNear);
   zone('street, far end', S2_LIGHTS, townFar);
+  if (typeof buildRoofs === 'function') zone('roofs', ROOF_LIGHTS, buildRoofs);      /* on the headset page: every roof, and the city past them */
   step('skyline', function () {                           /* the city over the rooftops, at both ends */
     var m = new T.MeshBasicMaterial({ map: TEX.far, transparent: true, alphaTest: 0.5, side: T.DoubleSide, fog: false });
     [[V(10, 26, 78), V(0, 0, -1), 190, 44], [V(10, 26, -44), V(0, 0, 1), 190, 44], [V(84, 26, 20), V(-1, 0, 0), 150, 44], [V(-52, 26, 20), V(1, 0, 0), 150, 44]].forEach(function (s) {
